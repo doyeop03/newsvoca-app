@@ -1,0 +1,43 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Published word sets are public learning content. Only trusted server
+    // code (Firebase Admin SDK) may create, update, or delete them.
+    match /daily_word_sets/{document=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Public legal notices are maintained only through trusted admin tools.
+    match /legal_documents/{documentId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // A signed-in user may access only their own profile and descendants:
+    // user_words, quiz_results, review_results, article_learning_results.
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+
+      match /{document=**} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    match /learning_difficulty_feedback/{feedbackId} {
+      allow create: if request.auth != null
+                    && request.resource.data.uid == request.auth.uid;
+      allow update: if request.auth != null
+                    && resource.data.uid == request.auth.uid
+                    && request.resource.data.uid == request.auth.uid;
+      allow get: if request.auth != null
+                 && resource.data.uid == request.auth.uid;
+      allow list, delete: if false;
+    }
+
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+  }
+}
