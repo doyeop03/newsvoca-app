@@ -1852,28 +1852,18 @@ bool _isAmbiguousReviewCandidate(
       answerTokens.any(candidateTokens.contains);
 }
 
-const Map<String, Set<String>> _relatedReviewCategories = {
-  'economy': {'politics', 'society'},
-  'technology': {'economy', 'politics'},
-  'politics': {'world', 'society', 'economy'},
-  'world': {'politics', 'society'},
-  'society': {'politics', 'economy', 'world'},
-};
-
 int reviewDistractorScore(
   Map<String, dynamic> answer,
   Map<String, dynamic> candidate,
 ) {
   var score = 0;
+  final answerTopic = _distractorTopic(answer);
+  final candidateTopic = _distractorTopic(candidate);
   final answerCategory = _normalizedReviewCategory(answer);
   final candidateCategory = _normalizedReviewCategory(candidate);
+  if (answerTopic.isNotEmpty && answerTopic == candidateTopic) score += 100;
   if (answerCategory.isNotEmpty && answerCategory == candidateCategory) {
-    score += 10;
-  } else if (_relatedReviewCategories[answerCategory]?.contains(
-        candidateCategory,
-      ) ==
-      true) {
-    score += 3;
+    score += 20;
   }
 
   final answerPart = normalizeReviewPartOfSpeech(
@@ -1882,11 +1872,11 @@ int reviewDistractorScore(
   final candidatePart = normalizeReviewPartOfSpeech(
     _text(candidate, 'part_of_speech'),
   );
-  if (answerPart != 'other' && answerPart == candidatePart) score += 5;
+  if (answerPart != 'other' && answerPart == candidatePart) score += 10;
 
   final answerLevel = _text(answer, 'level').toLowerCase();
   final candidateLevel = _text(candidate, 'level').toLowerCase();
-  if (answerLevel.isNotEmpty && answerLevel == candidateLevel) score += 2;
+  if (answerLevel.isNotEmpty && answerLevel == candidateLevel) score += 3;
 
   final answerLength = _text(answer, 'word').split(RegExp(r'[-\s]+')).length;
   final candidateLength = _text(
@@ -1915,134 +1905,15 @@ List<Map<String, dynamic>> rankReviewDistractorCandidates(
     }
     unique.putIfAbsent('$word|$meaning', () => candidate);
   }
-  final ranked = unique.values.toList()
-    ..sort((a, b) {
-      final scoreCompare = reviewDistractorScore(
-        answer,
-        b,
-      ).compareTo(reviewDistractorScore(answer, a));
-      if (scoreCompare != 0) return scoreCompare;
-      return _text(a, 'word').compareTo(_text(b, 'word'));
-    });
-  return ranked;
+  return selectDistractorWordData(
+    answer: answer,
+    candidates: unique.values,
+    count: unique.length,
+    random: math.Random(0),
+    excludeReviewExcluded: true,
+  );
 }
 
-const List<Map<String, dynamic>> _reviewDistractorSeeds = [
-  {
-    'word': 'missile defense',
-    'meaning': '미사일 방어 체계',
-    'category': 'world',
-    'part_of_speech': 'noun phrase',
-  },
-  {
-    'word': 'military deterrence',
-    'meaning': '군사적 억지력',
-    'category': 'world',
-    'part_of_speech': 'noun phrase',
-  },
-  {
-    'word': 'ground operation',
-    'meaning': '지상 작전',
-    'category': 'world',
-    'part_of_speech': 'noun phrase',
-  },
-  {
-    'word': 'territorial control',
-    'meaning': '영토 통제',
-    'category': 'world',
-    'part_of_speech': 'noun phrase',
-  },
-  {
-    'word': 'strategic alliance',
-    'meaning': '전략적 동맹',
-    'category': 'world',
-    'part_of_speech': 'noun phrase',
-  },
-  {
-    'word': 'computing capacity',
-    'meaning': '컴퓨팅 처리 역량',
-    'category': 'technology',
-    'part_of_speech': 'noun phrase',
-  },
-  {
-    'word': 'data privacy',
-    'meaning': '데이터 개인정보 보호',
-    'category': 'technology',
-    'part_of_speech': 'noun phrase',
-  },
-  {
-    'word': 'network security',
-    'meaning': '네트워크 보안',
-    'category': 'technology',
-    'part_of_speech': 'noun phrase',
-  },
-  {
-    'word': 'cloud infrastructure',
-    'meaning': '클라우드 기반 시설',
-    'category': 'technology',
-    'part_of_speech': 'noun phrase',
-  },
-  {
-    'word': 'market volatility',
-    'meaning': '시장 변동성',
-    'category': 'economy',
-    'part_of_speech': 'noun phrase',
-  },
-  {
-    'word': 'purchasing power',
-    'meaning': '구매력',
-    'category': 'economy',
-    'part_of_speech': 'noun phrase',
-  },
-  {
-    'word': 'monetary policy',
-    'meaning': '통화 정책',
-    'category': 'economy',
-    'part_of_speech': 'noun phrase',
-  },
-  {
-    'word': 'consumer spending',
-    'meaning': '소비 지출',
-    'category': 'economy',
-    'part_of_speech': 'noun phrase',
-  },
-  {
-    'word': 'housing inequality',
-    'meaning': '주거 불평등',
-    'category': 'society',
-    'part_of_speech': 'noun phrase',
-  },
-  {
-    'word': 'social mobility',
-    'meaning': '사회 이동성',
-    'category': 'society',
-    'part_of_speech': 'noun phrase',
-  },
-  {
-    'word': 'public welfare',
-    'meaning': '공공 복지',
-    'category': 'society',
-    'part_of_speech': 'noun phrase',
-  },
-  {
-    'word': 'approval rating',
-    'meaning': '지지율',
-    'category': 'politics',
-    'part_of_speech': 'noun phrase',
-  },
-  {
-    'word': 'legislative reform',
-    'meaning': '입법 개혁',
-    'category': 'politics',
-    'part_of_speech': 'noun phrase',
-  },
-  {
-    'word': 'voter turnout',
-    'meaning': '투표율',
-    'category': 'politics',
-    'part_of_speech': 'noun phrase',
-  },
-];
 
 List<_ReviewQuestion> _buildReviewQuestions(List<Map<String, dynamic>> words) {
   final usableWords = words
@@ -2312,7 +2183,7 @@ bool isReviewSpellingCandidate(Map<String, dynamic> wordData) {
 }
 
 Map<String, String> _reviewChoiceMeanings(List<Map<String, dynamic>> words) => {
-  for (final item in [...words, ..._reviewDistractorSeeds])
+  for (final item in words)
     if (_text(item, 'word').isNotEmpty)
       _text(item, 'word'): _koreanOptionMeaning(
         _text(item, 'meaning'),
@@ -2328,10 +2199,7 @@ List<String> buildReviewChoiceOptions({
   required math.Random random,
 }) {
   final correct = correctAnswer.trim();
-  final ranked = rankReviewDistractorCandidates(answerWordData, [
-    ...words,
-    ..._reviewDistractorSeeds,
-  ]);
+  final ranked = rankReviewDistractorCandidates(answerWordData, words);
   final normalizedCorrect = useMeaning
       ? _normalizeReviewMeaning(correct)
       : normalizeReviewQuizText(correct);

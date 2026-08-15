@@ -152,7 +152,27 @@ void main() {
     final choices = buildReviewChoiceOptions(
       correctAnswer: 'air dominance',
       answerWordData: answer,
-      words: [answer],
+      words: [
+        answer,
+        {
+          'word': 'missile defense',
+          'meaning': '미사일 방어 체계',
+          'category': 'world',
+          'part_of_speech': 'noun phrase',
+        },
+        {
+          'word': 'military deterrence',
+          'meaning': '군사적 억지력',
+          'category': 'world',
+          'part_of_speech': 'noun phrase',
+        },
+        {
+          'word': 'ground operation',
+          'meaning': '지상 작전',
+          'category': 'world',
+          'part_of_speech': 'noun phrase',
+        },
+      ],
       useMeaning: false,
       random: math.Random(7),
     );

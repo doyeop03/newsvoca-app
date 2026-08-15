@@ -566,6 +566,7 @@ class _DailyQuizWord {
     this.category = '',
     this.topic = '',
     this.topicLabelKo = '',
+    this.partOfSpeech = '',
     this.level = '',
   });
 
@@ -577,6 +578,7 @@ class _DailyQuizWord {
   final String category;
   final String topic;
   final String topicLabelKo;
+  final String partOfSpeech;
   final String level;
 
   Map<String, dynamic> toWordData(String category) {
@@ -589,6 +591,7 @@ class _DailyQuizWord {
       'category': category,
       if (topic.isNotEmpty) 'topic': topic,
       if (topicLabelKo.isNotEmpty) 'topic_label_ko': topicLabelKo,
+      if (partOfSpeech.isNotEmpty) 'part_of_speech': partOfSpeech,
       if (level.isNotEmpty) 'level': level,
     };
   }
@@ -1324,6 +1327,7 @@ List<_DailyQuizWord> _sanitizeDailyQuizWords(List<LearningWord> source) {
         category: source[index].category,
         topic: source[index].topic,
         topicLabelKo: source[index].topicLabelKo,
+        partOfSpeech: source[index].partOfSpeech,
         level: source[index].difficulty,
       ),
   ];
@@ -1343,9 +1347,10 @@ _DailyQuizQuestion _buildDailyQuizQuestion(
         prompt: '"${word.word}"의 뜻은 무엇일까요?',
         body: word.word,
         correctAnswer: word.meaning,
-        choices: _choices(
-          correctAnswer: word.meaning,
-          pool: words.map((item) => item.meaning),
+        choices: _dailyChoices(
+          answer: word,
+          words: words,
+          optionField: 'meaning',
           random: random,
         ),
       );
@@ -1370,9 +1375,10 @@ _DailyQuizQuestion _buildDailyQuizQuestion(
         prompt: '다음 설명에 해당하는 영어 단어는?',
         body: descriptionBody,
         correctAnswer: word.word,
-        choices: _choices(
-          correctAnswer: word.word,
-          pool: words.map((item) => item.word),
+        choices: _dailyChoices(
+          answer: word,
+          words: words,
+          optionField: 'word',
           random: random,
         ),
         choiceMeanings: _dailyChoiceMeanings(words),
@@ -1384,9 +1390,10 @@ _DailyQuizQuestion _buildDailyQuizQuestion(
         prompt: '빈칸에 들어갈 단어를 고르세요.',
         body: _blankExample(word.example, word.word, word.meaning),
         correctAnswer: word.word,
-        choices: _choices(
-          correctAnswer: word.word,
-          pool: words.map((item) => item.word),
+        choices: _dailyChoices(
+          answer: word,
+          words: words,
+          optionField: 'word',
           random: random,
         ),
         choiceMeanings: _dailyChoiceMeanings(words),
@@ -1416,9 +1423,10 @@ _DailyQuizQuestion _buildDailyQuizQuestion(
         prompt: '다음 설명에 해당하는 영어 단어는?',
         body: meaningBody,
         correctAnswer: word.word,
-        choices: _choices(
-          correctAnswer: word.word,
-          pool: words.map((item) => item.word),
+        choices: _dailyChoices(
+          answer: word,
+          words: words,
+          optionField: 'word',
           random: random,
         ),
         choiceMeanings: _dailyChoiceMeanings(words),
@@ -1432,22 +1440,18 @@ Map<String, String> _dailyChoiceMeanings(List<_DailyQuizWord> words) => {
       item.word.trim(): _fallback(item.meaning, item.description),
 };
 
-List<String> _choices({
-  required String correctAnswer,
-  required Iterable<String> pool,
+List<String> _dailyChoices({
+  required _DailyQuizWord answer,
+  required List<_DailyQuizWord> words,
+  required String optionField,
   required math.Random random,
 }) {
-  final normalizedCorrect = correctAnswer.trim();
-  final distractors =
-      pool
-          .map((item) => item.trim())
-          .where((item) => item.isNotEmpty && item != normalizedCorrect)
-          .toSet()
-          .toList()
-        ..shuffle(random);
-  final choices = <String>[normalizedCorrect, ...distractors.take(3)]
-    ..shuffle(random);
-  return choices;
+  return buildPrioritizedDistractorChoices(
+    answer: answer.toWordData(answer.category),
+    candidates: words.map((item) => item.toWordData(item.category)),
+    optionField: optionField,
+    random: random,
+  );
 }
 
 String _blankExample(String example, String word, String meaning) {

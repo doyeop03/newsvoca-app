@@ -586,11 +586,6 @@ List<_ArticleQuizQuestion> _buildArticleQuizQuestions(
   final expressions = candidates
       .where((item) => item.type == 'expression')
       .toList();
-  final meaningPool = candidates
-      .where((item) => hasValidArticleQuizMeaning(item.meaning))
-      .map((item) => item.meaning)
-      .toList();
-  final textPool = candidates.map((item) => item.text).toList();
   final questions = <_ArticleQuizQuestion>[];
 
   if (focus != null) {
@@ -601,7 +596,7 @@ List<_ArticleQuizQuestion> _buildArticleQuizQuestions(
         typeLabel: '핵심 단어 뜻',
         prompt: '"${focus.text}"의 뜻으로 알맞은 것은?',
         body: focus.text,
-        meaningPool: meaningPool,
+        candidates: candidates,
         random: random,
       ),
     );
@@ -613,7 +608,7 @@ List<_ArticleQuizQuestion> _buildArticleQuizQuestions(
       ...highlights,
       ...candidates.where((item) => item.sentence.isNotEmpty),
     ],
-    textPool: textPool,
+    allCandidates: candidates,
     random: random,
   );
   if (blankQuestion != null) questions.add(blankQuestion);
@@ -629,7 +624,7 @@ List<_ArticleQuizQuestion> _buildArticleQuizQuestions(
         typeLabel: '문장 속 단어',
         prompt: '"${highlight.text}"의 뜻으로 알맞은 것은?',
         body: highlight.sentence.isEmpty ? highlight.text : highlight.sentence,
-        meaningPool: meaningPool,
+        candidates: candidates,
         random: random,
       ),
     );
@@ -644,7 +639,7 @@ List<_ArticleQuizQuestion> _buildArticleQuizQuestions(
         typeLabel: '기사 표현',
         prompt: '"${expression.text}"의 뜻으로 알맞은 것은?',
         body: expression.text,
-        meaningPool: meaningPool,
+        candidates: candidates,
         random: random,
       ),
     );
@@ -659,7 +654,11 @@ List<_ArticleQuizQuestion> _buildArticleQuizQuestions(
             (questions.length < 3 ? focus : null);
   if (reverse != null) {
     questions.add(
-      _reverseQuestion(candidate: reverse, textPool: textPool, random: random),
+      _reverseQuestion(
+        candidate: reverse,
+        candidates: candidates,
+        random: random,
+      ),
     );
   }
 
@@ -668,7 +667,7 @@ List<_ArticleQuizQuestion> _buildArticleQuizQuestions(
     questions.add(
       _descriptionQuestion(
         candidate: fallbackCandidate,
-        textPool: textPool,
+        candidates: candidates,
         random: random,
       ),
     );
@@ -687,7 +686,7 @@ List<_ArticleQuizQuestion> _buildArticleQuizQuestions(
       useReverse
           ? _reverseQuestion(
               candidate: candidate,
-              textPool: textPool,
+              candidates: candidates,
               random: random,
             )
           : _meaningQuestion(
@@ -700,7 +699,7 @@ List<_ArticleQuizQuestion> _buildArticleQuizQuestions(
               body: candidate.sentence.isEmpty
                   ? candidate.text
                   : candidate.sentence,
-              meaningPool: meaningPool,
+              candidates: candidates,
               random: random,
             ),
     );
@@ -760,7 +759,7 @@ _ArticleQuizQuestion _meaningQuestion({
   required String typeLabel,
   required String prompt,
   required String body,
-  required List<String> meaningPool,
+  required List<_ArticleQuizCandidate> candidates,
   required math.Random random,
 }) {
   return _ArticleQuizQuestion(
@@ -770,9 +769,9 @@ _ArticleQuizQuestion _meaningQuestion({
     body: body,
     correctAnswer: candidate.meaning,
     choices: _articleChoices(
-      correctAnswer: candidate.meaning,
-      pool: meaningPool,
-      fallbackPool: const [],
+      answer: candidate,
+      candidates: candidates,
+      optionField: 'meaning',
       random: random,
     ),
     answerText: candidate.text,
@@ -785,7 +784,7 @@ _ArticleQuizQuestion _meaningQuestion({
 
 _ArticleQuizQuestion _reverseQuestion({
   required _ArticleQuizCandidate candidate,
-  required List<String> textPool,
+  required List<_ArticleQuizCandidate> candidates,
   required math.Random random,
 }) {
   final safeBody = _safeWordChoiceQuestionText(
@@ -803,7 +802,7 @@ _ArticleQuizQuestion _reverseQuestion({
       typeLabel: candidate.type == 'expression' ? '기사 표현' : '문장 속 단어',
       prompt: '"${candidate.text}"의 뜻으로 알맞은 것은?',
       body: candidate.text,
-      meaningPool: [candidate.meaning],
+      candidates: candidates,
       random: random,
     );
   }
@@ -814,9 +813,9 @@ _ArticleQuizQuestion _reverseQuestion({
     body: safeBody,
     correctAnswer: candidate.text,
     choices: _articleChoices(
-      correctAnswer: candidate.text,
-      pool: textPool,
-      fallbackPool: const [],
+      answer: candidate,
+      candidates: candidates,
+      optionField: 'word',
       random: random,
     ),
     answerText: candidate.text,
@@ -829,7 +828,7 @@ _ArticleQuizQuestion _reverseQuestion({
 
 _ArticleQuizQuestion _descriptionQuestion({
   required _ArticleQuizCandidate candidate,
-  required List<String> textPool,
+  required List<_ArticleQuizCandidate> candidates,
   required math.Random random,
 }) {
   final description = _safeWordChoiceQuestionText(
@@ -847,7 +846,7 @@ _ArticleQuizQuestion _descriptionQuestion({
       typeLabel: candidate.type == 'expression' ? '기사 표현' : '문장 속 단어',
       prompt: '"${candidate.text}"의 뜻으로 알맞은 것은?',
       body: candidate.text,
-      meaningPool: [candidate.meaning],
+      candidates: candidates,
       random: random,
     );
   }
@@ -858,9 +857,9 @@ _ArticleQuizQuestion _descriptionQuestion({
     body: description,
     correctAnswer: candidate.text,
     choices: _articleChoices(
-      correctAnswer: candidate.text,
-      pool: textPool,
-      fallbackPool: const [],
+      answer: candidate,
+      candidates: candidates,
+      optionField: 'word',
       random: random,
     ),
     answerText: candidate.text,
@@ -873,7 +872,7 @@ _ArticleQuizQuestion _descriptionQuestion({
 
 _ArticleQuizQuestion? _buildBlankQuestion({
   required List<_ArticleQuizCandidate> candidates,
-  required List<String> textPool,
+  required List<_ArticleQuizCandidate> allCandidates,
   required math.Random random,
 }) {
   for (final candidate in candidates) {
@@ -893,9 +892,9 @@ _ArticleQuizQuestion? _buildBlankQuestion({
       body: blanked,
       correctAnswer: answer,
       choices: _articleChoices(
-        correctAnswer: answer,
-        pool: textPool,
-        fallbackPool: const [],
+        answer: candidate,
+        candidates: allCandidates,
+        optionField: 'word',
         random: random,
       ),
       answerText: candidate.text,
@@ -909,26 +908,17 @@ _ArticleQuizQuestion? _buildBlankQuestion({
 }
 
 List<String> _articleChoices({
-  required String correctAnswer,
-  required Iterable<String> pool,
-  required Iterable<String> fallbackPool,
+  required _ArticleQuizCandidate answer,
+  required Iterable<_ArticleQuizCandidate> candidates,
+  required String optionField,
   required math.Random random,
 }) {
-  final correct = correctAnswer.trim();
-  if (correct.isEmpty) return const [];
-  final used = <String>{correct.toLowerCase()};
-  final distractors = <String>[];
-
-  for (final item in [...pool, ...fallbackPool]) {
-    final value = item.trim();
-    final key = value.toLowerCase();
-    if (value.isEmpty || used.contains(key)) continue;
-    used.add(key);
-    distractors.add(value);
-  }
-
-  distractors.shuffle(random);
-  return <String>[correct, ...distractors.take(3)]..shuffle(random);
+  return buildPrioritizedDistractorChoices(
+    answer: answer.toWordData(),
+    candidates: candidates.map((item) => item.toWordData()),
+    optionField: optionField,
+    random: random,
+  );
 }
 
 List<_ArticleQuizCandidate> _articleQuizCandidates(
@@ -944,6 +934,23 @@ List<_ArticleQuizCandidate> _articleQuizCandidates(
         text: focusWord,
         meaning: focusMeaning,
         description: _articleText(article, 'focus_word_description_ko'),
+        category: _articleText(article, 'category'),
+        topic: _articleText(
+          article,
+          'focus_word_topic',
+          _articleText(article, 'topic'),
+        ),
+        topicLabelKo: _articleText(
+          article,
+          'focus_word_topic_label_ko',
+          _articleText(article, 'topic_label_ko'),
+        ),
+        partOfSpeech: _articleText(article, 'focus_word_part_of_speech'),
+        level: _articleText(
+          article,
+          'focus_word_level',
+          _articleText(article, 'level'),
+        ),
         isFocusWord: true,
       ),
     );
@@ -966,6 +973,23 @@ List<_ArticleQuizCandidate> _articleQuizCandidates(
           meaning: meaning,
           sentence: sentenceText,
           sentenceKo: sentenceKo,
+          category: _articleText(
+            word,
+            'category',
+            _articleText(article, 'category'),
+          ),
+          topic: _articleText(
+            word,
+            'topic',
+            _articleText(sentence, 'topic', _articleText(article, 'topic')),
+          ),
+          topicLabelKo: _articleText(
+            word,
+            'topic_label_ko',
+            _articleText(article, 'topic_label_ko'),
+          ),
+          partOfSpeech: _articleText(word, 'part_of_speech'),
+          level: _articleText(word, 'level', _articleText(article, 'level')),
           isFocusWord: word['is_focus_word'] == true,
         ),
       );
@@ -977,7 +1001,32 @@ List<_ArticleQuizCandidate> _articleQuizCandidates(
     final meaning = _articleText(expression, 'meaning');
     if (text.isEmpty || !hasValidArticleQuizMeaning(meaning)) continue;
     candidates.add(
-      _ArticleQuizCandidate(type: 'expression', text: text, meaning: meaning),
+      _ArticleQuizCandidate(
+        type: 'expression',
+        text: text,
+        meaning: meaning,
+        category: _articleText(
+          expression,
+          'category',
+          _articleText(article, 'category'),
+        ),
+        topic: _articleText(
+          expression,
+          'topic',
+          _articleText(article, 'topic'),
+        ),
+        topicLabelKo: _articleText(
+          expression,
+          'topic_label_ko',
+          _articleText(article, 'topic_label_ko'),
+        ),
+        partOfSpeech: _articleText(expression, 'part_of_speech'),
+        level: _articleText(
+          expression,
+          'level',
+          _articleText(article, 'level'),
+        ),
+      ),
     );
   }
 
@@ -1089,6 +1138,11 @@ class _ArticleQuizCandidate {
     this.description = '',
     this.sentence = '',
     this.sentenceKo = '',
+    this.category = '',
+    this.topic = '',
+    this.topicLabelKo = '',
+    this.partOfSpeech = '',
+    this.level = '',
     this.isFocusWord = false,
   });
 
@@ -1098,5 +1152,20 @@ class _ArticleQuizCandidate {
   final String description;
   final String sentence;
   final String sentenceKo;
+  final String category;
+  final String topic;
+  final String topicLabelKo;
+  final String partOfSpeech;
+  final String level;
   final bool isFocusWord;
+
+  Map<String, dynamic> toWordData() => {
+    'word': text,
+    'meaning': meaning,
+    if (category.isNotEmpty) 'category': category,
+    if (topic.isNotEmpty) 'topic': topic,
+    if (topicLabelKo.isNotEmpty) 'topic_label_ko': topicLabelKo,
+    if (partOfSpeech.isNotEmpty) 'part_of_speech': partOfSpeech,
+    if (level.isNotEmpty) 'level': level,
+  };
 }

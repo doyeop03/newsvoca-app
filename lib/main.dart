@@ -33,6 +33,7 @@ import 'services/onboarding_service.dart';
 import 'utils/learning_date.dart';
 
 part 'models/learning_data.dart';
+part 'utils/distractor_selector.dart';
 part 'pages/article_pages.dart';
 part 'pages/article_mini_quiz_page.dart';
 part 'pages/home_page.dart';
