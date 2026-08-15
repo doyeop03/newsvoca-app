@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 
+const double englishTtsSpeechRate = 0.72;
+
 String cleanEnglishTextForTts(String text) {
   final cleaned = text
       .replaceAll(RegExp(r'/[^/\r\n]+/'), ' ')
@@ -18,7 +20,7 @@ abstract class EnglishTtsEngine {
   Future<void> setSpeechRate(double rate);
   Future<void> setPitch(double pitch);
   Future<void> setVolume(double volume);
-  Future<void> awaitSpeakCompletion(bool enabled); 
+  Future<void> awaitSpeakCompletion(bool enabled);
   Future<dynamic> getVoices();
   Future<void> speak(String text);
 }
@@ -70,7 +72,7 @@ class EnglishTtsController {
 
   Future<void> _initialize() async {
     await _engine.setLanguage('en-US');
-    await _engine.setSpeechRate(0.88);
+    await _engine.setSpeechRate(englishTtsSpeechRate);
     await _engine.setPitch(1.0);
     await _engine.setVolume(1.0);
     await _engine.awaitSpeakCompletion(true);

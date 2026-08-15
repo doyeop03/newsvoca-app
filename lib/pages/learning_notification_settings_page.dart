@@ -96,7 +96,7 @@ class _LearningNotificationSettingsPageState
           ),
         ),
         child: _loading
-            ? const Center(child: CircularProgressIndicator())
+            ? const Center(child: CircularProgressIndicator(color: _blue))
             : ListView(
                 padding: const EdgeInsets.fromLTRB(22, 16, 22, 36),
                 children: [
@@ -153,6 +153,7 @@ class _LearningNotificationSettingsPageState
                           onPressed: LocalNotificationService
                               .instance
                               .openSystemNotificationSettings,
+                          style: TextButton.styleFrom(foregroundColor: _blue),
                           icon: const Icon(Icons.settings_outlined, size: 18),
                           label: const Text('알림 설정 열기'),
                         ),
@@ -223,7 +224,19 @@ class _NotificationSettingCard extends StatelessWidget {
               ],
             ),
           ),
-          Switch(value: value, onChanged: enabled ? onChanged : null),
+          Switch(
+            value: value,
+            activeThumbColor: Colors.white,
+            activeTrackColor: _blue,
+            inactiveThumbColor: const Color(0xFF8D96A8),
+            inactiveTrackColor: const Color(0xFFDCE3EF),
+            trackOutlineColor: WidgetStateProperty.resolveWith(
+              (states) => states.contains(WidgetState.selected)
+                  ? _blue
+                  : const Color(0xFFC6CFDD),
+            ),
+            onChanged: enabled ? onChanged : null,
+          ),
         ],
       ),
     );

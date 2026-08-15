@@ -343,7 +343,15 @@ class _LoginPageState extends State<LoginPage> {
                             height: 52,
                             child: OutlinedButton.icon(
                               onPressed: _isLoading ? null : _signInWithGoogle,
-                              icon: const Icon(Icons.g_mobiledata_rounded),
+                              icon: Padding(
+                                padding: const EdgeInsets.only(right: 3),
+                                child: Image.asset(
+                                  'assets/images/google_g_logo.png',
+                                  width: 20,
+                                  height: 20,
+                                  fit: BoxFit.contain,
+                                ),
+                              ),
                               label: const Text('Google로 로그인'),
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: const Color(0xFF343841),

@@ -172,7 +172,6 @@ class _ArticleLearningPageState extends State<ArticleLearningPage> {
         children: [
           _ArticleHeadline(
             category: _text('category'),
-            readingTime: _text('reading_time'),
             title: title,
             source: _text('source'),
             publishedAt: _text('publishedAt'),
@@ -528,14 +527,12 @@ class _RelatedWordsGuideDialogState extends State<_RelatedWordsGuideDialog> {
 class _ArticleHeadline extends StatelessWidget {
   const _ArticleHeadline({
     required this.category,
-    required this.readingTime,
     required this.title,
     required this.source,
     required this.publishedAt,
   });
 
   final String category;
-  final String readingTime;
   final String title;
   final String source;
   final String publishedAt;
@@ -545,41 +542,25 @@ class _ArticleHeadline extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            if (category.isNotEmpty)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE8F0FF),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  category.toUpperCase(),
-                  style: const TextStyle(
-                    color: Color(0xFF397CF6),
-                    fontSize: 9,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.7,
-                  ),
-                ),
+        if (category.isNotEmpty) ...[
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+            decoration: BoxDecoration(
+              color: const Color(0xFFE8F0FF),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              category.toUpperCase(),
+              style: const TextStyle(
+                color: Color(0xFF397CF6),
+                fontSize: 9,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.7,
               ),
-            const Spacer(),
-            if (readingTime.isNotEmpty) ...[
-              const Icon(Icons.schedule_rounded, size: 14, color: _muted),
-              const SizedBox(width: 4),
-              Text(
-                readingTime,
-                style: const TextStyle(
-                  color: _muted,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ],
-        ),
-        const SizedBox(height: 14),
+            ),
+          ),
+          const SizedBox(height: 14),
+        ],
         Text(
           title,
           style: const TextStyle(

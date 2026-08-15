@@ -44,7 +44,7 @@ void main() {
         engine.calls.take(speakIndex),
         containsAllInOrder([
           'language:en-US',
-          'rate:0.88',
+          'rate:0.72',
           'completion:true',
           'voice:Samantha:en-US',
           'stop',

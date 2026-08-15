@@ -80,7 +80,7 @@ void main() {
     expect(inferenceRow, findsOneWidget);
     expect(
       find.descendant(of: inferenceRow, matching: find.text('•')),
-      findsOneWidget,
+      findsNothing,
     );
     expect(
       find.descendant(of: inferenceRow, matching: find.byType(Card)),
