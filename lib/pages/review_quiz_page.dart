@@ -714,6 +714,7 @@ class _ReviewCurveGuideDialog extends StatelessWidget {
       elevation: 0,
       insetPadding: const EdgeInsets.symmetric(horizontal: 28),
       child: Container(
+        key: const ValueKey('review-guide-popup-surface'),
         constraints: const BoxConstraints(maxWidth: 420),
         padding: const EdgeInsets.fromLTRB(22, 22, 22, 18),
         decoration: BoxDecoration(

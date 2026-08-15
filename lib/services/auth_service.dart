@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import '../constants/legal_document_versions.dart';
@@ -210,13 +211,30 @@ class AuthService {
       throw const AccountDeletionException('로그인 정보가 없습니다. 다시 로그인해 주세요.');
     }
 
-    await _reauthenticateForAccountDeletion(user, password: password);
-
+    // Keep the identifiers needed by every cleanup step before Auth can become
+    // null. Deleting the Auth user is deliberately the final asynchronous step.
     final uid = user.uid;
-    // Do not delete the Auth account unless every Firestore deletion succeeds.
-    await _deleteUserData(uid);
-    await user.delete();
-    await AppLocalDataService.clearAppPreferences(uid: uid);
+    await runAccountDeletionSteps(
+      reauthenticate: () =>
+          _reauthenticateForAccountDeletion(user, password: password),
+      deleteRemoteData: () => _deleteUserData(uid),
+      clearLocalData: () => AppLocalDataService.clearAppPreferences(uid: uid),
+      deleteAuthUser: user.delete,
+    );
+  }
+
+  @visibleForTesting
+  static Future<void> runAccountDeletionSteps({
+    required Future<void> Function() reauthenticate,
+    required Future<void> Function() deleteRemoteData,
+    required Future<void> Function() clearLocalData,
+    required Future<void> Function() deleteAuthUser,
+  }) async {
+    await reauthenticate();
+    // Do not delete the Auth account unless every data cleanup succeeds.
+    await deleteRemoteData();
+    await clearLocalData();
+    await deleteAuthUser();
   }
 
   static Future<void> _reauthenticateForAccountDeletion(

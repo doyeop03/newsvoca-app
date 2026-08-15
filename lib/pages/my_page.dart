@@ -263,6 +263,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
 
   Future<void> _deleteAccount(BuildContext context) async {
     setState(() => _isDeletingAccount = true);
+    var deletionSucceeded = false;
     try {
       final provider = AuthService.currentAccountLoginProvider();
       String? password;
@@ -274,7 +275,10 @@ class _MyPageScreenState extends State<MyPageScreen> {
       }
 
       await AuthService.deleteAccount(password: password);
+      deletionSucceeded = true;
       if (context.mounted) {
+        // The bottom navigation replaces the AuthGate route, so this screen is
+        // the single navigation owner for account deletion in that flow.
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const _AuthGate()),
           (route) => false,
@@ -303,7 +307,9 @@ class _MyPageScreenState extends State<MyPageScreen> {
         ).showSnackBar(const SnackBar(content: Text('계정 삭제 중 문제가 발생했습니다.')));
       }
     } finally {
-      if (mounted) {
+      // On success this route is leaving permanently. Rebuilding it after Auth
+      // has become null can briefly render stale account UI during navigation.
+      if (!deletionSucceeded && mounted) {
         setState(() => _isDeletingAccount = false);
       }
     }

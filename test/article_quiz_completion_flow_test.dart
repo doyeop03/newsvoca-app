@@ -82,6 +82,13 @@ void main() {
     }
 
     expect(find.text('기사 학습이 완료되었어요'), findsOneWidget);
+    final popupSurface = tester.widget<Container>(
+      find.byKey(const ValueKey('article-completion-popup-surface')),
+    );
+    final popupDecoration = popupSurface.decoration! as BoxDecoration;
+    expect(popupDecoration.color, Colors.white);
+    expect(popupDecoration.gradient, isNull);
+    expect(popupDecoration.image, isNull);
     expect(find.byIcon(Icons.emoji_events_rounded), findsNothing);
     expect(find.text('단어 학습으로 돌아가기'), findsNothing);
     expect(find.text('기사로 돌아가기'), findsNothing);

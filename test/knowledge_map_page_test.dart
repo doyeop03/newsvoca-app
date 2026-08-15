@@ -67,7 +67,52 @@ void main() {
     expect(find.text('인공지능'), findsOneWidget);
     expect(find.text('반도체'), findsOneWidget);
     expect(find.text('기타'), findsOneWidget);
-    expect(find.text('1개'), findsNWidgets(2));
+    final artificialIntelligenceTopic = find.byKey(
+      const ValueKey('knowledge-topic-row-artificial_intelligence'),
+    );
+    final semiconductorTopic = find.byKey(
+      const ValueKey('knowledge-topic-row-semiconductor'),
+    );
+    expect(artificialIntelligenceTopic, findsOneWidget);
+    expect(semiconductorTopic, findsOneWidget);
+    expect(
+      find.descendant(
+        of: artificialIntelligenceTopic,
+        matching: find.text('2개'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: semiconductorTopic, matching: find.text('1개')),
+      findsOneWidget,
+    );
+    for (final topicRow in [artificialIntelligenceTopic, semiconductorTopic]) {
+      expect(
+        find.descendant(of: topicRow, matching: find.byType(Card)),
+        findsNothing,
+      );
+      expect(
+        find.descendant(of: topicRow, matching: find.byType(Container)),
+        findsNothing,
+      );
+      expect(
+        find.descendant(of: topicRow, matching: find.byType(Ink)),
+        findsNothing,
+      );
+      expect(
+        find.descendant(of: topicRow, matching: find.byType(DecoratedBox)),
+        findsNothing,
+      );
+    }
+
+    final artificialIntelligenceLabel = tester.widget<Text>(
+      find.text('인공지능'),
+    );
+    final semiconductorLabel = tester.widget<Text>(find.text('반도체'));
+    expect(
+      artificialIntelligenceLabel.style?.color,
+      semiconductorLabel.style?.color,
+    );
 
     await tester.ensureVisible(find.text('인공지능'));
     await tester.tap(find.text('인공지능'));

@@ -510,6 +510,7 @@ class _ArticleQuizCompletionOverlay extends StatelessWidget {
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 320),
                   child: Container(
+                    key: const ValueKey('article-completion-popup-surface'),
                     margin: const EdgeInsets.symmetric(horizontal: 28),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 28,

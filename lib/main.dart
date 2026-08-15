@@ -10,6 +10,7 @@ import 'package:flutter/rendering.dart'
     show
         debugPaintBaselinesEnabled,
         debugPaintLayerBordersEnabled,
+        debugPaintPointersEnabled,
         debugPaintSizeEnabled,
         debugPaintTextLayoutBoxes,
         debugRepaintRainbowEnabled,
@@ -69,8 +70,8 @@ String dailyQuizCompletedKey(String date, String category) =>
     'daily_quiz_completed_${date}_$category';
 
 Future<void> main() async {
+  _NewsvocaWidgetsBinding();
   _disableDebugPaintOverlays();
-  WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
@@ -100,15 +101,27 @@ Future<void> main() async {
 }
 
 void _disableDebugPaintOverlays() {
-  assert(() {
-    debugPaintSizeEnabled = false;
-    debugPaintBaselinesEnabled = false;
-    debugPaintTextLayoutBoxes = false;
-    debugPaintLayerBordersEnabled = false;
-    debugRepaintRainbowEnabled = false;
-    debugRepaintTextRainbowEnabled = false;
-    return true;
-  }());
+  debugPaintSizeEnabled = false;
+  debugPaintBaselinesEnabled = false;
+  debugPaintTextLayoutBoxes = false;
+  debugPaintLayerBordersEnabled = false;
+  debugPaintPointersEnabled = false;
+  debugRepaintRainbowEnabled = false;
+  debugRepaintTextRainbowEnabled = false;
+}
+
+class _NewsvocaWidgetsBinding extends WidgetsFlutterBinding {
+  @override
+  void drawFrame() {
+    // Flutter Inspector can toggle debug paint after startup. Reset every
+    // debug frame immediately before rendering so RenderBox.debugPaintSize()
+    // cannot draw cyan outlines through dialogs and completion overlays.
+    assert(() {
+      _disableDebugPaintOverlays();
+      return true;
+    }());
+    super.drawFrame();
+  }
 }
 
 const _ink = Color(0xFF17171C);

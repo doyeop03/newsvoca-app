@@ -34,6 +34,42 @@ void main() {
     });
   });
 
+  group('account deletion sequence', () {
+    test('deletes Auth only after remote and local data cleanup', () async {
+      final calls = <String>[];
+
+      await AuthService.runAccountDeletionSteps(
+        reauthenticate: () async => calls.add('reauthenticate'),
+        deleteRemoteData: () async => calls.add('remote-data'),
+        clearLocalData: () async => calls.add('local-data'),
+        deleteAuthUser: () async => calls.add('auth-user'),
+      );
+
+      expect(calls, [
+        'reauthenticate',
+        'remote-data',
+        'local-data',
+        'auth-user',
+      ]);
+    });
+
+    test('does not delete Auth when an earlier cleanup fails', () async {
+      var authUserDeleted = false;
+
+      await expectLater(
+        AuthService.runAccountDeletionSteps(
+          reauthenticate: () async {},
+          deleteRemoteData: () async => throw StateError('cleanup failed'),
+          clearLocalData: () async {},
+          deleteAuthUser: () async => authUserDeleted = true,
+        ),
+        throwsStateError,
+      );
+
+      expect(authUserDeleted, isFalse);
+    });
+  });
+
   test('clears only NEWSVOCA SharedPreferences data', () async {
     SharedPreferences.setMockInitialValues({
       'hasCompletedIntroOnboarding': true,

@@ -75,6 +75,13 @@ void main() {
     expect(find.text('자동 복습 안내'), findsOneWidget);
     expect(find.textContaining('학습 결과에 맞춰 필요한 단어를'), findsOneWidget);
     expect(find.text('다음 복습 시점도 자동으로 조정돼요.'), findsOneWidget);
+    final popupSurface = tester.widget<Container>(
+      find.byKey(const ValueKey('review-guide-popup-surface')),
+    );
+    final popupDecoration = popupSurface.decoration! as BoxDecoration;
+    expect(popupDecoration.color, const Color(0xFFFFFBFF));
+    expect(popupDecoration.gradient, isNull);
+    expect(popupDecoration.image, isNull);
     expect(find.byIcon(Icons.schedule_rounded), findsNothing);
 
     await tester.tap(find.text('닫기'));

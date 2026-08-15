@@ -458,18 +458,9 @@ class _KnowledgeTopicRow extends StatelessWidget {
       children: [
         InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(6),
-          child: Ink(
-            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
-            decoration: BoxDecoration(
-              color: _knowledgeCountColor(topic.words.length),
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(
-                color: selected
-                    ? const Color(0xFFB8CCF7)
-                    : const Color(0xFFE2E8F2),
-              ),
-            ),
+          child: Padding(
+            key: ValueKey('knowledge-topic-row-${topic.key}'),
+            padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 5),
             child: Row(
               children: [
                 Expanded(
@@ -477,8 +468,8 @@ class _KnowledgeTopicRow extends StatelessWidget {
                     topic.label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: selected ? _blue : const Color(0xFF354158),
+                    style: const TextStyle(
+                      color: Color(0xFF354158),
                       fontSize: 14,
                       fontWeight: FontWeight.w800,
                     ),
