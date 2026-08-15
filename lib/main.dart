@@ -6,6 +6,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart'
+    show
+        debugPaintBaselinesEnabled,
+        debugPaintLayerBordersEnabled,
+        debugPaintSizeEnabled,
+        debugPaintTextLayoutBoxes,
+        debugRepaintRainbowEnabled,
+        debugRepaintTextRainbowEnabled;
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -61,6 +69,7 @@ String dailyQuizCompletedKey(String date, String category) =>
     'daily_quiz_completed_${date}_$category';
 
 Future<void> main() async {
+  _disableDebugPaintOverlays();
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
@@ -88,6 +97,18 @@ Future<void> main() async {
     print('Firebase startup failed: $error');
     runApp(VocaBriefApp(startupError: error.toString()));
   }
+}
+
+void _disableDebugPaintOverlays() {
+  assert(() {
+    debugPaintSizeEnabled = false;
+    debugPaintBaselinesEnabled = false;
+    debugPaintTextLayoutBoxes = false;
+    debugPaintLayerBordersEnabled = false;
+    debugRepaintRainbowEnabled = false;
+    debugRepaintTextRainbowEnabled = false;
+    return true;
+  }());
 }
 
 const _ink = Color(0xFF17171C);
