@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -21,7 +23,10 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  ReviewQuizPage buildReviewPage({Key? key}) {
+  ReviewQuizPage buildReviewPage({
+    Key? key,
+    ReviewGuideVisibilityChecker? reviewGuideShouldShow,
+  }) {
     return ReviewQuizPage(
       key: key,
       reviewWords: const [reviewWord],
@@ -29,6 +34,7 @@ void main() {
       updateReviewResultForWord: (_, _) async {},
       excludeWordFromReview: (_) async {},
       restoreWordToReview: (_) async {},
+      reviewGuideShouldShow: reviewGuideShouldShow,
     );
   }
 
@@ -86,6 +92,41 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 350));
     expect(find.text('학습 결과에 맞춰 필요한 단어를\n자동으로 복습해요.'), findsOneWidget);
+  });
+
+  testWidgets('async guide lookup schedules a frame and shows only once', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final guideResult = Completer<bool>();
+    var guideChecks = 0;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: buildReviewPage(
+          reviewGuideShouldShow: () {
+            guideChecks++;
+            return guideResult.future;
+          },
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(guideChecks, 1);
+
+    guideResult.complete(true);
+    await tester.idle();
+    expect(tester.binding.hasScheduledFrame, isTrue);
+
+    await tester.pump();
+    await tester.pumpAndSettle();
+    expect(find.text('자동 복습 안내'), findsOneWidget);
+    expect(guideChecks, 1);
+
+    await tester.pump();
+    expect(find.text('자동 복습 안내'), findsOneWidget);
+    expect(guideChecks, 1);
   });
 
   testWidgets('hide permanently survives a new review page instance', (

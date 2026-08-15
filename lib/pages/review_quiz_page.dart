@@ -198,9 +198,16 @@ class _ReviewQuizPageState extends State<ReviewQuizPage> {
     final shouldShow = await checker();
     if (!mounted || !shouldShow || _completed) return;
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && !_completed) _showReviewGuideDialog();
-    });
+    // The preference check can finish after the route's first frame. Merely
+    // registering another post-frame callback at that point does not request a
+    // frame on a static Android screen, so the guide may wait for user input.
+    // endOfFrame schedules a frame when needed and lets the new route finish
+    // rendering before the dialog is attached to it.
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted || _completed || ModalRoute.of(context)?.isCurrent != true) {
+      return;
+    }
+    await _showReviewGuideDialog();
   }
 
   Future<void> _showReviewGuideDialog() {
@@ -308,10 +315,6 @@ class _ReviewQuizPageState extends State<ReviewQuizPage> {
     if (shouldExclude && _excludedDuringSession.contains(currentWordKey)) {
       return;
     }
-    if (shouldExclude && !await _confirmReviewExclusion()) {
-      return;
-    }
-    if (!mounted) return;
     setState(() => _isExcludingCurrentWord = true);
     try {
       if (shouldExclude) {
@@ -352,27 +355,6 @@ class _ReviewQuizPageState extends State<ReviewQuizPage> {
         ),
       );
     }
-  }
-
-  Future<bool> _confirmReviewExclusion() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('복습에서 제외할까요?'),
-        content: const Text('이 단어는 다음 복습부터 나오지 않아요.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('취소'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('제외하기'),
-          ),
-        ],
-      ),
-    );
-    return confirmed ?? false;
   }
 
   Future<void> _goNext() async {

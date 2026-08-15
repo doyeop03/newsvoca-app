@@ -43,9 +43,6 @@ void main() {
   Future<void> excludeCurrentWord(WidgetTester tester) async {
     await tester.tap(find.text('그만 볼래요'));
     await tester.pumpAndSettle();
-    expect(find.text('이 단어는 다음 복습부터 나오지 않아요.'), findsWidgets);
-    await tester.tap(find.text('제외하기'));
-    await tester.pumpAndSettle();
   }
 
   ReviewQuizPage buildPage({
@@ -121,6 +118,7 @@ void main() {
 
     await excludeCurrentWord(tester);
 
+    expect(find.text('복습에서 제외할까요?'), findsNothing);
     expect(exclusionCalls, 1);
     expect(excludedWord?['id'], firstWord['id']);
     expect(find.text('복습에서 제외했어요'), findsOneWidget);
@@ -173,41 +171,40 @@ void main() {
     await answerFirstChoice(tester);
     await tester.tap(find.text('그만 볼래요'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('제외하기'));
-    await tester.pumpAndSettle();
 
     expect(find.text('그만 볼래요'), findsOneWidget);
     expect(find.text('복습에서 제외했어요'), findsNothing);
     expect(find.text('복습 제외 처리를 완료하지 못했어요.\n잠시 후 다시 시도해 주세요.'), findsOneWidget);
   });
 
-  testWidgets('exclusion keeps duplicate questions and prevents duplicate writes', (
-    tester,
-  ) async {
-    await useTallViewport(tester);
-    var exclusionCalls = 0;
-    await tester.pumpWidget(
-      MaterialApp(
-        home: buildPage(
-          words: [firstWord],
-          excluder: (_) async => exclusionCalls++,
+  testWidgets(
+    'exclusion keeps duplicate questions and prevents duplicate writes',
+    (tester) async {
+      await useTallViewport(tester);
+      var exclusionCalls = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: buildPage(
+            words: [firstWord],
+            excluder: (_) async => exclusionCalls++,
+          ),
         ),
-      ),
-    );
-    await tester.pump();
+      );
+      await tester.pump();
 
-    await answerFirstChoice(tester);
-    await excludeCurrentWord(tester);
-    expect(exclusionCalls, 1);
-    expect(find.text('1 / 15'), findsOneWidget);
+      await answerFirstChoice(tester);
+      await excludeCurrentWord(tester);
+      expect(exclusionCalls, 1);
+      expect(find.text('1 / 15'), findsOneWidget);
 
-    await tester.tap(find.text('다음 문제'));
-    await tester.pump();
-    expect(find.text('2 / 15'), findsOneWidget);
-    await answerFirstChoice(tester);
-    expect(find.text('다음 복습부터 제외돼요'), findsOneWidget);
-    expect(find.text('이번 복습의 남은 문제는 그대로 진행해요.'), findsOneWidget);
-    expect(find.text('그만 볼래요'), findsNothing);
-    expect(exclusionCalls, 1);
-  });
+      await tester.tap(find.text('다음 문제'));
+      await tester.pump();
+      expect(find.text('2 / 15'), findsOneWidget);
+      await answerFirstChoice(tester);
+      expect(find.text('다음 복습부터 제외돼요'), findsOneWidget);
+      expect(find.text('이번 복습의 남은 문제는 그대로 진행해요.'), findsOneWidget);
+      expect(find.text('그만 볼래요'), findsNothing);
+      expect(exclusionCalls, 1);
+    },
+  );
 }
