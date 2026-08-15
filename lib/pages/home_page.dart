@@ -150,6 +150,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _refreshHomeStats();
   }
 
+  Future<void> _openMyPage() async {
+    final learningSettingsChanged = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => const MyPageScreen()),
+    );
+    if (learningSettingsChanged == true && mounted) {
+      await _loadIntegratedDailyLearning();
+    }
+  }
+
   Future<void> _loadInterestCategories() async {
     try {
       final categories = await UserPreferenceService.getInterestCategories();
@@ -402,14 +412,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             children: [
                               const _HomeLogo(),
                               const Spacer(),
-                              _HomeAccountButton(
-                                onTap: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const MyPageScreen(),
-                                  ),
-                                ),
-                              ),
+                              _HomeAccountButton(onTap: _openMyPage),
                             ],
                           ),
                         ),

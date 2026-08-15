@@ -181,10 +181,13 @@ class _MyPageScreenState extends State<MyPageScreen> {
   }
 
   Future<void> _openInterestCategories(BuildContext context) async {
-    await Navigator.push<bool>(
+    final changed = await Navigator.push<bool>(
       context,
       MaterialPageRoute(builder: (_) => const InterestCategoryPage()),
     );
+    if (changed == true && context.mounted) {
+      Navigator.pop(context, true);
+    }
   }
 
   Future<void> _openPrivacyPolicy(BuildContext context) async {

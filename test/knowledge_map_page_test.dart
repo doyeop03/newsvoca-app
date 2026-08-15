@@ -74,6 +74,26 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('inference'), findsOneWidget);
     expect(find.text('reasoning'), findsOneWidget);
+    final inferenceRow = find.byKey(
+      const ValueKey('knowledge-word-row-inference'),
+    );
+    expect(inferenceRow, findsOneWidget);
+    expect(
+      find.descendant(of: inferenceRow, matching: find.text('•')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: inferenceRow, matching: find.byType(Card)),
+      findsNothing,
+    );
+    expect(
+      find.descendant(of: inferenceRow, matching: find.byType(Container)),
+      findsNothing,
+    );
+    expect(
+      find.descendant(of: inferenceRow, matching: find.byType(Ink)),
+      findsNothing,
+    );
     expect(find.text('추론'), findsOneWidget);
     expect(tester.takeException(), isNull);
 

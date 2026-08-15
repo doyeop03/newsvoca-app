@@ -541,9 +541,15 @@ class _KnowledgeWordRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
+      key: ValueKey('knowledge-word-row-${word.id}'),
       padding: const EdgeInsets.symmetric(vertical: 7),
       child: Row(
         children: [
+          const Text(
+            '•',
+            style: TextStyle(color: Color(0xFF8A94A7), fontSize: 13, height: 1),
+          ),
+          const SizedBox(width: 8),
           Expanded(
             flex: 4,
             child: Text(
