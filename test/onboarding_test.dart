@@ -81,13 +81,20 @@ void main() {
   ) async {
     SharedPreferences.setMockInitialValues({});
     var completed = false;
+    String? savedUserId;
     await tester.pumpWidget(
       MaterialApp(
         home: OnboardingScreen(
           userId: 'test-user',
           onCompleted: () => completed = true,
           preferenceSaver:
-              ({required categories, required dailyWordGoal}) async {},
+              ({
+                required userId,
+                required categories,
+                required dailyWordGoal,
+              }) async {
+                savedUserId = userId;
+              },
           completionSaver: OnboardingService.setCompleted,
         ),
       ),
@@ -148,7 +155,56 @@ void main() {
     await tester.tap(find.text('시작하기'));
     await tester.pump();
     expect(completed, isTrue);
+    expect(savedUserId, 'test-user');
 
     expect(await OnboardingService.isCompleted('test-user'), isTrue);
+  });
+
+  testWidgets('failed preference save does not complete onboarding', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    var completionCalls = 0;
+    var completed = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: OnboardingScreen(
+          userId: 'test-user',
+          onCompleted: () => completed = true,
+          preferenceSaver:
+              ({
+                required userId,
+                required categories,
+                required dailyWordGoal,
+              }) => Future<void>.error(Exception('write failed')),
+          completionSaver: (_) async => completionCalls++,
+        ),
+      ),
+    );
+
+    for (var index = 0; index < 4; index++) {
+      await tester.tap(find.text('다음'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+    }
+    await tester.tap(find.text('경제'));
+    await tester.pump();
+    await tester.ensureVisible(find.text('3개'));
+    await tester.tap(find.text('3개'));
+    await tester.pump();
+    await tester.tap(find.text('시작하기'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(completionCalls, 0);
+    expect(completed, isFalse);
+    expect(await OnboardingService.isCompleted('test-user'), isFalse);
+    expect(find.text('학습 설정을 저장하지 못했어요. 다시 시도해 주세요.'), findsOneWidget);
+    expect(
+      tester
+          .widget<FilledButton>(find.widgetWithText(FilledButton, '시작하기'))
+          .onPressed,
+      isNotNull,
+    );
   });
 }

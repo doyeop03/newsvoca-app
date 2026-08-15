@@ -2,6 +2,7 @@ part of '../main.dart';
 
 typedef OnboardingPreferenceSaver =
     Future<void> Function({
+      required String userId,
       required List<String> categories,
       required int dailyWordGoal,
     });
@@ -83,28 +84,70 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   Future<void> _finish() async {
     if (_finishing) return;
     setState(() => _finishing = true);
+    var saveStage = 'authentication';
     try {
       final orderedCategories = UserPreferenceService.defaultInterestCategories
           .where(_selectedCategories.contains)
           .toList(growable: false);
+
+      if (widget.preferenceSaver == null) {
+        final currentUser = AuthService.currentUser;
+        if (currentUser == null || currentUser.isAnonymous) {
+          throw StateError('Authenticated user is unavailable.');
+        }
+        if (currentUser.uid != widget.userId) {
+          throw StateError('Authenticated user does not match onboarding.');
+        }
+      }
+
+      saveStage = 'learning_preferences';
       await (widget.preferenceSaver ??
-          UserPreferenceService.updateLearningPreferences)(
+          UserPreferenceService.updateLearningPreferencesForUser)(
+        userId: widget.userId,
         categories: orderedCategories,
         dailyWordGoal: _dailyWordGoal!,
       );
+
+      saveStage = 'local_completion';
       await (widget.completionSaver ?? OnboardingService.setCompleted)(
         widget.userId,
       );
+
       if (!mounted) return;
-      widget.onCompleted?.call();
-    } catch (error) {
-      debugPrint('[onboarding] completion failed: $error');
+    } catch (error, stackTrace) {
+      _logOnboardingSaveFailure(saveStage, error, stackTrace);
       if (!mounted) return;
       setState(() => _finishing = false);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('학습 설정을 저장하지 못했어요. 다시 시도해 주세요.')),
       );
+      return;
     }
+
+    widget.onCompleted?.call();
+  }
+
+  void _logOnboardingSaveFailure(
+    String stage,
+    Object error,
+    StackTrace stackTrace,
+  ) {
+    if (!kDebugMode) return;
+    if (error is FirebaseException) {
+      debugPrint(
+        '[onboarding] save failed stage=$stage '
+        'plugin=${error.plugin} code=${error.code} message=${error.message}',
+      );
+    } else {
+      debugPrint(
+        '[onboarding] save failed stage=$stage type=${error.runtimeType} '
+        'error=$error',
+      );
+    }
+    debugPrintStack(
+      label: '[onboarding] save failure stack',
+      stackTrace: stackTrace,
+    );
   }
 
   @override

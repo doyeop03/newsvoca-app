@@ -96,6 +96,18 @@ class UserPreferenceService {
     required int dailyWordGoal,
   }) async {
     final uid = await AuthService.ensureAnonymousLogin();
+    await updateLearningPreferencesForUser(
+      userId: uid,
+      categories: categories,
+      dailyWordGoal: dailyWordGoal,
+    );
+  }
+
+  static Future<void> updateLearningPreferencesForUser({
+    required String userId,
+    required List<String> categories,
+    required int dailyWordGoal,
+  }) async {
     final sanitized = _sanitizeCategories(categories);
     if (sanitized.isEmpty) {
       throw StateError('At least one interest category is required.');
@@ -104,7 +116,7 @@ class UserPreferenceService {
       currentGoal: sanitizeDailyWordGoal(dailyWordGoal),
       selectedCategoryCount: sanitized.length,
     );
-    await _firestore.collection('users').doc(uid).set({
+    await _firestore.collection('users').doc(userId).set({
       'interest_categories': sanitized,
       'daily_word_goal': normalizedGoal,
       'updated_at': FieldValue.serverTimestamp(),
