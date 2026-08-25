@@ -73,6 +73,26 @@ void main() {
     );
   });
 
+  test('legacy and V2 learned words share the existing review pool', () {
+    final legacyWord = {...firstWord, 'source_issue_id': ''};
+    final v2Word = {
+      ...secondWord,
+      'source_issue_id': 'issue-2026-08-18-1',
+      'topic': 'global-economy',
+      'topic_label_ko': '글로벌 경제',
+    };
+
+    final candidates = [
+      legacyWord,
+      v2Word,
+    ].where(ReviewService.isReviewCandidate).toList();
+
+    expect(
+      candidates.map((word) => word['word']),
+      containsAll(['sanction', 'policy']),
+    );
+  });
+
   test('review exclusion update contains only recoverable status fields', () {
     final timestamp = Object();
     expect(ReviewService.buildReviewExclusionData(excludedAt: timestamp), {

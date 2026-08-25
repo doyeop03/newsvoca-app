@@ -12,23 +12,15 @@ List<TextSpan> buildHighlightedTextSpans(String text, String keyword) {
     return [TextSpan(text: text)];
   }
 
-  final lowerText = text.toLowerCase();
-  final lowerKeyword = normalizedKeyword.toLowerCase();
   final spans = <TextSpan>[];
   var cursor = 0;
-
-  while (cursor < text.length) {
-    final matchStart = lowerText.indexOf(lowerKeyword, cursor);
-    if (matchStart == -1) {
-      spans.add(TextSpan(text: text.substring(cursor)));
-      break;
-    }
-
+  final matcher = _keywordInflectionPattern(normalizedKeyword);
+  for (final match in matcher.allMatches(text)) {
+    final matchStart = match.start;
     if (matchStart > cursor) {
       spans.add(TextSpan(text: text.substring(cursor, matchStart)));
     }
-
-    final matchEnd = matchStart + normalizedKeyword.length;
+    final matchEnd = match.end;
     spans.add(
       TextSpan(
         text: text.substring(matchStart, matchEnd),
@@ -38,7 +30,70 @@ List<TextSpan> buildHighlightedTextSpans(String text, String keyword) {
     cursor = matchEnd;
   }
 
+  if (cursor < text.length) {
+    spans.add(TextSpan(text: text.substring(cursor)));
+  }
+
   return spans.isEmpty ? [TextSpan(text: text)] : spans;
+}
+
+RegExp _keywordInflectionPattern(String keyword) {
+  final words = keyword.split(RegExp(r'\s+'));
+  const particles = {'down', 'up', 'out', 'off', 'on', 'over', 'back', 'away'};
+  final inflectedIndex = words.length == 1
+      ? 0
+      : particles.contains(words.last.toLowerCase())
+      ? 0
+      : words.length - 1;
+  final parts = <String>[];
+  for (var index = 0; index < words.length; index += 1) {
+    if (index != inflectedIndex) {
+      parts.add(RegExp.escape(words[index]));
+      continue;
+    }
+    final variants = _englishInflectionVariants(words[index]);
+    parts.add('(?:${variants.map(RegExp.escape).join('|')})');
+  }
+  return RegExp(r'\b' + parts.join(r'\s+') + r'\b', caseSensitive: false);
+}
+
+Set<String> _englishInflectionVariants(String value) {
+  final word = value.toLowerCase();
+  final variants = <String>{word};
+  const irregular = <String, List<String>>{
+    'be': ['am', 'is', 'are', 'was', 'were', 'been'],
+    'go': ['goes', 'went', 'gone', 'going'],
+    'make': ['makes', 'made', 'making'],
+    'take': ['takes', 'took', 'taken', 'taking'],
+    'run': ['runs', 'ran', 'running'],
+    'buy': ['buys', 'bought', 'buying'],
+    'lead': ['leads', 'led', 'leading'],
+    'find': ['finds', 'found', 'finding'],
+  };
+  variants.addAll(irregular[word] ?? const <String>[]);
+  if (word.endsWith('y') && word.length > 1 && !'aeiou'.contains(word[word.length - 2])) {
+    variants
+      ..add('${word.substring(0, word.length - 1)}ies')
+      ..add('${word.substring(0, word.length - 1)}ied')
+      ..add('${word}ing');
+  } else if (word.endsWith('e')) {
+    variants
+      ..add('${word}s')
+      ..add('${word}d')
+      ..add('${word.substring(0, word.length - 1)}ing');
+  } else {
+    variants
+      ..add('${word}s')
+      ..add('${word}es')
+      ..add('${word}ed')
+      ..add('${word}ing');
+    if (word.length >= 3 && !'aeiou'.contains(word[word.length - 1])) {
+      variants
+        ..add('$word${word[word.length - 1]}ed')
+        ..add('$word${word[word.length - 1]}ing');
+    }
+  }
+  return variants;
 }
 
 const quizHintUnavailableMessage = '힌트를 준비 중이에요.';
@@ -101,21 +156,36 @@ class QuizTranslationHint extends StatefulWidget {
   State<QuizTranslationHint> createState() => _QuizTranslationHintState();
 }
 
+String resolveQuizTranslationHint({
+  required String koreanSentence,
+  required String answerMeaning,
+  required String answerText,
+}) {
+  final sentence = koreanSentence.trim();
+  final masked = buildMaskedKoreanHint(
+    koreanSentence: sentence,
+    answerMeaning: answerMeaning,
+  );
+  final safeHint = masked.isNotEmpty ? masked : sentence;
+  final answer = answerText.trim();
+  if (safeHint.isEmpty ||
+      !RegExp(r'[가-힣]').hasMatch(safeHint) ||
+      (answer.isNotEmpty &&
+          safeHint.toLowerCase().contains(answer.toLowerCase()))) {
+    return quizHintUnavailableMessage;
+  }
+  return safeHint;
+}
+
 class _QuizTranslationHintState extends State<QuizTranslationHint> {
   bool _expanded = false;
 
   String get _maskedHint {
-    final masked = buildMaskedKoreanHint(
+    return resolveQuizTranslationHint(
       koreanSentence: widget.koreanSentence,
       answerMeaning: widget.answerMeaning,
+      answerText: widget.answerText,
     );
-    final answer = widget.answerText.trim();
-    if (masked.isEmpty ||
-        (answer.isNotEmpty &&
-            masked.toLowerCase().contains(answer.toLowerCase()))) {
-      return quizHintUnavailableMessage;
-    }
-    return masked;
   }
 
   @override
@@ -748,6 +818,94 @@ class _PrimaryButton extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _LearningWordNavigationButtons extends StatelessWidget {
+  const _LearningWordNavigationButtons({
+    required this.previousEnabled,
+    required this.nextEnabled,
+    required this.onPrevious,
+    required this.onNext,
+    this.showDisabledButtons = true,
+    this.previousLabel = '이전 단어',
+    this.nextLabel = '다음 단어',
+  });
+
+  final bool previousEnabled;
+  final bool nextEnabled;
+  final VoidCallback onPrevious;
+  final VoidCallback onNext;
+  final bool showDisabledButtons;
+  final String previousLabel;
+  final String nextLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final showPrevious = previousEnabled || showDisabledButtons;
+    final showNext = nextEnabled || showDisabledButtons;
+    return Row(
+      children: [
+        if (showPrevious)
+          Expanded(
+            child: SizedBox(
+              height: 56,
+              child: OutlinedButton.icon(
+                onPressed: previousEnabled ? onPrevious : null,
+                icon: const Icon(Icons.arrow_back_rounded),
+                label: Text(previousLabel),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _blue,
+                  disabledForegroundColor: _muted,
+                  backgroundColor: Colors.white,
+                  disabledBackgroundColor: const Color(0xFFF1F2F6),
+                  side: const BorderSide(color: Color(0xFFE1E5EF)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(17),
+                  ),
+                  textStyle: const TextStyle(fontWeight: FontWeight.w900),
+                ),
+              ),
+            ),
+          ),
+        if (showPrevious && showNext) const SizedBox(width: 10),
+        if (showNext)
+          Expanded(
+            child: SizedBox(
+              height: 56,
+              child: FilledButton(
+                onPressed: nextEnabled ? onNext : null,
+                style: FilledButton.styleFrom(
+                  backgroundColor: _blue,
+                  disabledBackgroundColor: const Color(0xFFD7DCE8),
+                  foregroundColor: Colors.white,
+                  disabledForegroundColor: Colors.white,
+                  shadowColor: const Color(0x665B8EF3),
+                  elevation: nextEnabled ? 3 : 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(17),
+                  ),
+                  textStyle: const TextStyle(fontWeight: FontWeight.w900),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Flexible(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(nextLabel),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Icon(Icons.arrow_forward_rounded),
+                  ],
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

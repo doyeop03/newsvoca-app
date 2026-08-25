@@ -9,6 +9,19 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Published daily issues are global, date-keyed, read-only learning content.
+    match /daily_issues/{date} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // The active operational notice is public app content. It can only be
+    // maintained through the Firebase Console or trusted Admin SDK tooling.
+    match /app_notices/{documentId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     // Public legal notices are maintained only through trusted admin tools.
     match /legal_documents/{documentId} {
       allow read: if true;

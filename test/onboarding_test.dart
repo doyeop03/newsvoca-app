@@ -37,6 +37,14 @@ void main() {
 
     expect(find.textContaining('NEWSVOCA로'), findsOneWidget);
     expect(find.text('다음'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('onboarding_indicator_3')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('onboarding_indicator_4')),
+      findsNothing,
+    );
 
     await tester.tap(find.text('다음'));
     await tester.pump();
@@ -78,12 +86,12 @@ void main() {
     expect(find.text('건너뛰기'), findsNothing);
   });
 
-  testWidgets('settings require categories and a daily goal before start', (
+  testWidgets('V2 onboarding omits category and daily goal pages', (
     tester,
   ) async {
     SharedPreferences.setMockInitialValues({});
     var completed = false;
-    String? savedUserId;
+    var preferenceCalls = 0;
     await tester.pumpWidget(
       MaterialApp(
         home: OnboardingScreen(
@@ -95,74 +103,35 @@ void main() {
                 required categories,
                 required dailyWordGoal,
               }) async {
-                savedUserId = userId;
+                preferenceCalls++;
               },
           completionSaver: OnboardingService.setCompleted,
         ),
       ),
     );
 
-    for (var index = 0; index < 4; index++) {
+    for (var index = 0; index < 3; index++) {
       await tester.tap(find.text('다음'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
     }
 
-    FilledButton startButton() =>
-        tester.widget<FilledButton>(find.widgetWithText(FilledButton, '시작하기'));
-    expect(startButton().onPressed, isNull);
-    expect(find.text('하루 학습 단어 수'), findsOneWidget);
-
-    final economyTapTarget = find.ancestor(
-      of: find.text('경제'),
-      matching: find.byType(InkWell),
+    final startButton = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, '시작하기'),
     );
-    expect(tester.getSize(economyTapTarget).height, greaterThanOrEqualTo(54));
-    final politicsPosition = tester.getTopLeft(find.text('정치'));
-    final societyPosition = tester.getTopLeft(find.text('사회'));
-    expect(societyPosition.dx, closeTo(politicsPosition.dx, 1));
-    expect(societyPosition.dy, greaterThan(politicsPosition.dy));
-
-    final threeWordTapTarget = find.ancestor(
-      of: find.text('3개'),
-      matching: find.byType(InkWell),
-    );
-    expect(tester.getSize(threeWordTapTarget).height, greaterThanOrEqualTo(78));
-
-    for (final category in ['경제', '기술', '국제']) {
-      await tester.tap(find.text(category));
-      await tester.pump(const Duration(milliseconds: 100));
-    }
-
-    final selectedEconomyText = tester.widget<Text>(find.text('경제'));
-    expect(selectedEconomyText.style?.color, Colors.white);
-
-    expect(find.text('하루 학습 단어 수'), findsOneWidget);
-    expect(find.text('약 5분'), findsOneWidget);
-    expect(find.text('약 15분'), findsOneWidget);
-    expect(find.text('약 30분'), findsOneWidget);
-    expect(startButton().onPressed, isNull);
-
-    await tester.ensureVisible(find.text('9개'));
-    await tester.pump(const Duration(milliseconds: 400));
-    await tester.drag(
-      find.byType(SingleChildScrollView).last,
-      const Offset(0, -180),
-    );
-    await tester.pump(const Duration(milliseconds: 200));
-    await tester.tap(find.text('9개'));
-    await tester.pump();
-    expect(startButton().onPressed, isNotNull);
+    expect(startButton.onPressed, isNotNull);
+    expect(find.text('하루 학습 단어 수'), findsNothing);
+    expect(find.text('관심 분야'), findsNothing);
 
     await tester.tap(find.text('시작하기'));
     await tester.pump();
     expect(completed, isTrue);
-    expect(savedUserId, 'test-user');
+    expect(preferenceCalls, 0);
 
     expect(await OnboardingService.isCompleted('test-user'), isTrue);
   });
 
-  testWidgets('failed preference save does not complete onboarding', (
+  testWidgets('legacy preference saver is not called by V2 onboarding', (
     tester,
   ) async {
     SharedPreferences.setMockInitialValues({});
@@ -184,82 +153,13 @@ void main() {
       ),
     );
 
-    for (var index = 0; index < 4; index++) {
-      await tester.tap(find.text('다음'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 400));
-    }
-    await tester.tap(find.text('경제'));
-    await tester.pump();
-    await tester.ensureVisible(find.text('3개'));
-    await tester.tap(find.text('3개'));
-    await tester.pump();
+    await _advanceToOnboardingFinish(tester);
     await tester.tap(find.text('시작하기'));
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 400));
 
-    expect(completionCalls, 0);
-    expect(completed, isFalse);
+    expect(completionCalls, 1);
+    expect(completed, isTrue);
     expect(await OnboardingService.isCompleted('test-user'), isFalse);
-    expect(find.text('학습 설정을 저장하지 못했어요. 다시 시도해 주세요.'), findsOneWidget);
-    expect(
-      tester
-          .widget<FilledButton>(find.widgetWithText(FilledButton, '시작하기'))
-          .onPressed,
-      isNotNull,
-    );
-  });
-
-  testWidgets('a hanging Firestore preference save times out and can retry', (
-    tester,
-  ) async {
-    SharedPreferences.setMockInitialValues({});
-    final hangingSave = Completer<void>();
-    var completionCalls = 0;
-    var completed = false;
-    var preferenceCalls = 0;
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: OnboardingScreen(
-          userId: 'test-user',
-          onCompleted: () => completed = true,
-          preferenceSaveTimeout: const Duration(milliseconds: 50),
-          preferenceSaver:
-              ({required userId, required categories, required dailyWordGoal}) {
-                preferenceCalls++;
-                return hangingSave.future;
-              },
-          completionSaver: (_) async => completionCalls++,
-        ),
-      ),
-    );
-
-    await _configureOnboardingForSave(tester);
-    await tester.tap(find.text('시작하기'));
-    await tester.pump();
-
-    expect(find.text('저장 중...'), findsOneWidget);
-    expect(
-      tester
-          .widget<FilledButton>(find.widgetWithText(FilledButton, '저장 중...'))
-          .onPressed,
-      isNull,
-    );
-
-    await tester.pump(const Duration(milliseconds: 80));
-    await tester.pump();
-
-    expect(preferenceCalls, 1);
-    expect(completionCalls, 0);
-    expect(completed, isFalse);
-    expect(find.text('저장에 시간이 오래 걸리고 있어요. 다시 시도해 주세요.'), findsOneWidget);
-    expect(
-      tester
-          .widget<FilledButton>(find.widgetWithText(FilledButton, '시작하기'))
-          .onPressed,
-      isNotNull,
-    );
   });
 
   testWidgets('a hanging completion flag save times out and can retry', (
@@ -293,7 +193,7 @@ void main() {
       ),
     );
 
-    await _configureOnboardingForSave(tester);
+    await _advanceToOnboardingFinish(tester);
     await tester.tap(find.text('시작하기'));
     await tester.pump();
     expect(find.text('저장 중...'), findsOneWidget);
@@ -301,7 +201,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 80));
     await tester.pump();
 
-    expect(preferenceCalls, 1);
+    expect(preferenceCalls, 0);
     expect(completionCalls, 1);
     expect(completed, isFalse);
     expect(find.text('저장에 시간이 오래 걸리고 있어요. 다시 시도해 주세요.'), findsOneWidget);
@@ -314,15 +214,10 @@ void main() {
   });
 }
 
-Future<void> _configureOnboardingForSave(WidgetTester tester) async {
-  for (var index = 0; index < 4; index++) {
+Future<void> _advanceToOnboardingFinish(WidgetTester tester) async {
+  for (var index = 0; index < 3; index++) {
     await tester.tap(find.text('다음'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
   }
-  await tester.tap(find.text('경제'));
-  await tester.pump();
-  await tester.ensureVisible(find.text('3개'));
-  await tester.tap(find.text('3개'));
-  await tester.pump();
 }

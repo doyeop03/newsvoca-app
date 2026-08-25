@@ -1,17 +1,17 @@
 part of '../main.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({super.key, this.initialIssueSet});
+
+  @visibleForTesting
+  final DailyIssueSet? initialIssueSet;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
-  bool _isTestingFirestore = false;
   bool _isLoadingInterests = true;
-  // ignore: unused_field
-  String _firestoreTestResult = '';
   Map<String, bool> _completedCategories = const {};
   List<String> _interestCategories =
       UserPreferenceService.defaultInterestCategories;
@@ -23,7 +23,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int? _homeStreakCount = 0;
   int? _homeMonthlyStudyDays = 0;
   Timer? _publishTimer;
+  Timer? _noticeBoundaryTimer;
+  StreamSubscription<AppNotice?>? _manualNoticeSubscription;
+  StreamSubscription<DailyIssueAvailability>? _issueAvailabilitySubscription;
+  AppNotice? _manualNotice;
+  DailyIssueAvailability _dailyIssueAvailability =
+      DailyIssueAvailability.unknown;
   IntegratedDailyLearningSet? _integratedDailySet;
+  DailyIssueSet? _dailyIssueSet;
   bool _dailyLearningCompleted = false;
   Map<String, bool> _weeklyReviewCompletion = const {
     'mon': false,
@@ -40,18 +47,30 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    if (widget.initialIssueSet case final issueSet?) {
+      _dailyIssueSet = issueSet;
+      _integratedDailySet = IntegratedDailyLearningSet.fromDailyIssue(issueSet);
+      _isLoadingInterests = false;
+      _isLoadingHomeStats = false;
+      _weeklyReviewLoading = false;
+      return;
+    }
     _loadInterestCategories();
     _loadIntegratedDailyLearning();
     _loadWeeklyReviewCompletion();
     _loadDailyQuizCompletionStatus();
     _loadReviewCompletionStatus();
     _refreshHomeStats();
+    _startNoticeListeners();
     _schedulePublishReload();
   }
 
   @override
   void dispose() {
     _publishTimer?.cancel();
+    _noticeBoundaryTimer?.cancel();
+    _manualNoticeSubscription?.cancel();
+    _issueAvailabilitySubscription?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -64,6 +83,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _loadWeeklyReviewCompletion();
       _loadReviewCompletionStatus();
       _refreshHomeStats();
+      _restartDailyIssueNoticeListener();
+      _refreshNoticeForTimeBoundary();
       _schedulePublishReload();
     }
   }
@@ -82,8 +103,85 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _loadWeeklyReviewCompletion();
       _loadReviewCompletionStatus();
       _refreshHomeStats();
+      _restartDailyIssueNoticeListener();
       _schedulePublishReload();
     });
+  }
+
+  void _startNoticeListeners() {
+    try {
+      final service = AppNoticeService();
+      _manualNoticeSubscription = service.watchCurrentNotice().listen(
+        (notice) {
+          if (!mounted) return;
+          setState(() => _manualNotice = notice);
+          _scheduleNoticeBoundaryRefresh();
+        },
+        onError: (Object error, StackTrace stackTrace) {
+          if (kDebugMode) {
+            final code = error is FirebaseException ? error.code : 'unknown';
+            debugPrint(
+              '[app-notice] listen failed '
+              'path=${AppNoticeService.currentDocumentPath} '
+              'code=$code error=$error',
+            );
+            debugPrintStack(stackTrace: stackTrace);
+          }
+        },
+      );
+      _listenToDailyIssueAvailability(service);
+    } catch (error) {
+      if (kDebugMode) debugPrint('[app-notice] initialization failed: $error');
+    }
+  }
+
+  void _listenToDailyIssueAvailability(AppNoticeService service) {
+    _issueAvailabilitySubscription?.cancel();
+    _dailyIssueAvailability = DailyIssueAvailability.unknown;
+    _issueAvailabilitySubscription = service
+        .watchDailyIssue(appDateString())
+        .listen(
+          (availability) {
+            if (!mounted) return;
+            setState(() => _dailyIssueAvailability = availability);
+          },
+          onError: (Object error) {
+            if (kDebugMode) {
+              debugPrint('[app-notice] daily issue listen failed: $error');
+            }
+          },
+        );
+  }
+
+  void _restartDailyIssueNoticeListener() {
+    try {
+      _listenToDailyIssueAvailability(AppNoticeService());
+    } catch (error) {
+      if (kDebugMode) debugPrint('[app-notice] restart failed: $error');
+    }
+  }
+
+  void _scheduleNoticeBoundaryRefresh() {
+    _noticeBoundaryTimer?.cancel();
+    final now = DateTime.now();
+    final start = _manualNotice?.startAt;
+    final end = _manualNotice?.endAt?.add(
+      const Duration(milliseconds: 100),
+    );
+    final candidates = <DateTime>[
+      ?start,
+      ?end,
+    ].where((date) => date.isAfter(now)).toList()
+      ..sort();
+    if (candidates.isEmpty) return;
+    _noticeBoundaryTimer = Timer(candidates.first.difference(now), () {
+      _refreshNoticeForTimeBoundary();
+      _scheduleNoticeBoundaryRefresh();
+    });
+  }
+
+  void _refreshNoticeForTimeBoundary() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _refreshHomeStats() async {
@@ -225,23 +323,31 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _loadIntegratedDailyLearning() async {
+    DailyIssueSet? issueSet;
     try {
-      final set = await IntegratedDailyLearningService().load();
-      final completed = await UserWordService.hasDailyQuizResult(set.date);
-      if (!mounted) return;
-      setState(() {
-        _integratedDailySet = set;
-        _interestCategories = set.categories.isEmpty
-            ? _interestCategories
-            : set.categories;
-        _dailyLearningCompleted = completed;
-        _isLoadingInterests = false;
-      });
+      issueSet = await DailyIssueService().load();
+    } catch (error) {
+      // Release stays in a retryable loading state; debug uses its guarded fixture.
+      // ignore: avoid_print
+      print('[daily-issues] load failed: $error');
+    }
+    final integratedSet = issueSet == null
+        ? null
+        : IntegratedDailyLearningSet.fromDailyIssue(issueSet);
+    var completed = false;
+    try {
+      completed = await UserWordService.hasDailyQuizResult(appDateString());
     } catch (error) {
       // ignore: avoid_print
-      print('[daily-learning] load failed: $error');
-      if (mounted) setState(() => _isLoadingInterests = false);
+      print('[daily-learning] completion check failed: $error');
     }
+    if (!mounted) return;
+    setState(() {
+      _dailyIssueSet = issueSet;
+      _integratedDailySet = integratedSet;
+      _dailyLearningCompleted = completed;
+      _isLoadingInterests = false;
+    });
   }
 
   Future<void> _loadWeeklyReviewCompletion() async {
@@ -274,26 +380,32 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _startLearning(String category) async {
-    final set = _integratedDailySet;
-    if (set == null || set.words.isEmpty) {
-      ScaffoldMessenger.of(
+  Future<void> _startLearning(String _) async {
+    var issueSet = _dailyIssueSet;
+    if (issueSet == null || !issueSet.isReady) {
+      await _loadIntegratedDailyLearning();
+      if (!mounted) return;
+      issueSet = _dailyIssueSet;
+    }
+    if (issueSet != null && issueSet.isReady) {
+      final readySet = issueSet;
+      await Navigator.push(
         context,
-      ).showSnackBar(const SnackBar(content: Text('오늘 학습할 단어를 준비하고 있어요.')));
+        MaterialPageRoute(
+          builder: (_) => IssueLearningPage(issueSet: readySet),
+        ),
+      );
+      if (!mounted) return;
+      await _loadDailyQuizCompletionStatus();
+      await _loadIntegratedDailyLearning();
+      await _loadReviewCompletionStatus();
+      _refreshHomeStats();
       return;
     }
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => WordDetailScreen(integratedSet: set)),
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('오늘의 주요 이슈를 준비하고 있어요. 잠시 후 다시 시도해 주세요.')),
     );
-    if (!mounted) {
-      return;
-    }
-    await _loadInterestCategories();
-    await _loadDailyQuizCompletionStatus();
-    await _loadIntegratedDailyLearning();
-    await _loadReviewCompletionStatus();
-    _refreshHomeStats();
   }
 
   Future<void> _startReview() async {
@@ -339,45 +451,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _refreshHomeStats();
   }
 
-  // ignore: unused_element
-  Future<void> _testFirestoreDailyWordSet() async {
-    if (_isTestingFirestore) {
-      return;
-    }
-
-    setState(() {
-      _isTestingFirestore = true;
-      _firestoreTestResult = 'Firestore 읽기 중...';
-    });
-
-    final dailyWordService = DailyWordService();
-    final data = await dailyWordService.getDailyWordSet(
-      date: '2026-06-30',
-      category: 'economy',
-    );
-
-    if (!mounted) {
-      return;
-    }
-
-    final message = data != null
-        ? (data['main_issue']?.toString() ?? 'main_issue 값이 없습니다')
-        : dailyWordService.lastError != null
-        ? 'Firestore 읽기 오류'
-        : '문서를 찾을 수 없습니다';
-
-    setState(() {
-      _isTestingFirestore = false;
-      _firestoreTestResult = message;
-    });
-
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
-  }
-
   @override
   Widget build(BuildContext context) {
+    final visibleNotice = resolveHomeNotice(
+      manualNotice: _manualNotice,
+      dailyIssueAvailability: _dailyIssueAvailability,
+      now: DateTime.now(),
+    );
     return Scaffold(
       backgroundColor: _clayBackground,
       body: DecoratedBox(
@@ -426,7 +506,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         const SizedBox(height: 28),
                         Expanded(
                           child: _TodayLearningDashboardSection(
+                            notice: visibleNotice,
                             learningSet: _integratedDailySet,
+                            hasIssueSet: _dailyIssueSet?.isReady == true,
                             learningCompleted: _dailyLearningCompleted,
                             weeklyReviewCompletion: _weeklyReviewCompletion,
                             weeklyReviewLoading: _weeklyReviewLoading,
@@ -537,7 +619,9 @@ class _LearningTask {
 
 class _TodayLearningDashboardSection extends StatelessWidget {
   const _TodayLearningDashboardSection({
+    required this.notice,
     required this.learningSet,
+    required this.hasIssueSet,
     required this.learningCompleted,
     required this.weeklyReviewCompletion,
     required this.weeklyReviewLoading,
@@ -546,7 +630,9 @@ class _TodayLearningDashboardSection extends StatelessWidget {
     required this.onStudy,
   });
 
+  final AppNotice? notice;
   final IntegratedDailyLearningSet? learningSet;
+  final bool hasIssueSet;
   final bool learningCompleted;
   final Map<String, bool> weeklyReviewCompletion;
   final bool weeklyReviewLoading;
@@ -602,8 +688,13 @@ class _TodayLearningDashboardSection extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
+          if (notice case final activeNotice?) ...[
+            AppNoticeBanner(notice: activeNotice),
+            const SizedBox(height: 16),
+          ],
           _IntegratedDailyLearningCard(
             learningSet: learningSet,
+            hasIssueSet: hasIssueSet,
             completed: learningCompleted,
             onStudy: () => onStudy('daily'),
           ),
@@ -690,26 +781,22 @@ class _KnowledgeMapEntryCard extends StatelessWidget {
 class _IntegratedDailyLearningCard extends StatelessWidget {
   const _IntegratedDailyLearningCard({
     required this.learningSet,
+    required this.hasIssueSet,
     required this.completed,
     required this.onStudy,
   });
 
   final IntegratedDailyLearningSet? learningSet;
+  final bool hasIssueSet;
   final bool completed;
   final VoidCallback onStudy;
 
   @override
   Widget build(BuildContext context) {
-    final set = learningSet;
-    final categoryNames = (set?.categories ?? const <String>[])
-        .map(_categoryDisplayName)
-        .join(' · ');
-    final canStart = !completed && set != null && set.words.isNotEmpty;
-    final countText = set == null
-        ? '오늘의 단어 준비 중'
-        : completed
-        ? '${set.actualWordCount}개 단어 학습 완료'
-        : '${set.actualWordCount}개 단어';
+    final canStart = hasIssueSet ? !completed : true;
+    final countText = hasIssueSet
+        ? (completed ? '오늘의 주요 이슈 학습 완료' : '오늘의 주요 이슈 5개')
+        : '오늘의 주요 이슈 준비 중';
 
     return Semantics(
       button: canStart,
@@ -803,9 +890,9 @@ class _IntegratedDailyLearningCard extends StatelessWidget {
                               ),
                               const SizedBox(height: 6),
                               Text(
-                                set == null || categoryNames.isEmpty
-                                    ? '학습 정보를 불러오고 있어요'
-                                    : categoryNames,
+                                hasIssueSet
+                                    ? '핵심 단어 ${learningSet?.actualWordCount ?? 0}개를 함께 학습해요'
+                                    : '눌러서 최신 데이터를 다시 확인해요',
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(

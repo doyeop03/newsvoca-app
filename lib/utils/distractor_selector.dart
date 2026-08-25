@@ -7,6 +7,82 @@ String normalizeDistractorValue(Object? value) => (value?.toString() ?? '')
     .replaceAll(RegExp(r'''[.,;:!?"'`()\[\]{}]'''), '')
     .trim();
 
+String normalizeDistractorLemma(Object? value, {Object? partOfSpeech}) {
+  final normalized = normalizeDistractorValue(value);
+  if (normalized.isEmpty) return '';
+  final tokens = normalized.split(' ');
+  final part = normalizeDistractorValue(partOfSpeech);
+  final index = part.contains('verb') ? 0 : tokens.length - 1;
+  var token = tokens[index];
+  const irregular = {
+    'was': 'be',
+    'were': 'be',
+    'been': 'be',
+    'went': 'go',
+    'gone': 'go',
+    'made': 'make',
+    'took': 'take',
+    'taken': 'take',
+    'ran': 'run',
+    'written': 'write',
+    'wrote': 'write',
+    'woos': 'woo',
+    'wooed': 'woo',
+    'studies': 'study',
+    'studied': 'study',
+    'companies': 'company',
+    'investors': 'investor',
+  };
+  token = irregular[token] ?? token;
+  const invariant = {
+    'analysis',
+    'business',
+    'gas',
+    'news',
+    'series',
+    'species',
+  };
+  if (invariant.contains(token)) {
+    // Keep dictionary forms whose trailing s is not a plural/verb suffix.
+  } else if (token.endsWith('ies') && token.length > 4) {
+    token = '${token.substring(0, token.length - 3)}y';
+  } else if (token.endsWith('ing') && token.length > 5) {
+    token = token.substring(0, token.length - 3);
+    if (token.length >= 3 &&
+        token[token.length - 1] == token[token.length - 2] &&
+        !'aeiou'.contains(token[token.length - 1])) {
+      token = token.substring(0, token.length - 1);
+    }
+  } else if (token.endsWith('ed') && token.length > 4) {
+    token = token.substring(0, token.length - 2);
+  } else if (token.endsWith('s') &&
+      !token.endsWith('ss') &&
+      !token.endsWith('us') &&
+      !token.endsWith('is')) {
+    token = token.substring(0, token.length - 1);
+  }
+  tokens[index] = token;
+  return tokens.join(' ');
+}
+
+bool areDistractorMeaningsAmbiguous(Object? first, Object? second) {
+  final firstRaw = first?.toString().trim().toLowerCase() ?? '';
+  final secondRaw = second?.toString().trim().toLowerCase() ?? '';
+  final a = normalizeDistractorValue(firstRaw);
+  final b = normalizeDistractorValue(secondRaw);
+  if (a.isEmpty || b.isEmpty) return false;
+  if (a == b ||
+      (a.length >= 2 && b.length >= 2 && (a.contains(b) || b.contains(a)))) {
+    return true;
+  }
+  Set<String> equivalents(String value) => value
+      .split(RegExp(r'[,/·]|\s+(?:또는|혹은)\s+'))
+      .map(normalizeDistractorValue)
+      .where((item) => item.length >= 2)
+      .toSet();
+  return equivalents(firstRaw).intersection(equivalents(secondRaw)).isNotEmpty;
+}
+
 String _distractorText(Map<String, dynamic> data, String key) =>
     data[key]?.toString().trim() ?? '';
 
@@ -79,10 +155,14 @@ List<Map<String, dynamic>> selectDistractorWordData({
   required int count,
   required math.Random random,
   bool excludeReviewExcluded = false,
+  bool requireMatchingPartOfSpeech = false,
 }) {
   if (count <= 0) return const [];
-  final answerWord = normalizeDistractorValue(answer['word']);
-  final answerMeaning = normalizeDistractorValue(answer['meaning']);
+  final answerWord = normalizeDistractorLemma(
+    answer['word'],
+    partOfSpeech: answer['part_of_speech'] ?? answer['partOfSpeech'],
+  );
+  final answerMeaningRaw = answer['meaning'];
   final answerTopic = _distractorTopic(answer);
   final answerCategory = _distractorCategory(answer);
   final answerPart = _distractorPartOfSpeech(answer);
@@ -95,12 +175,20 @@ List<Map<String, dynamic>> selectDistractorWordData({
     if (excludeReviewExcluded && candidate['review_excluded'] == true) {
       continue;
     }
-    final word = normalizeDistractorValue(candidate['word']);
-    final meaning = normalizeDistractorValue(candidate['meaning']);
+    final word = normalizeDistractorLemma(
+      candidate['word'],
+      partOfSpeech: candidate['part_of_speech'] ?? candidate['partOfSpeech'],
+    );
+    final candidateMeaningRaw = candidate['meaning'];
+    final meaning = normalizeDistractorValue(candidateMeaningRaw);
+    final candidatePart = _distractorPartOfSpeech(candidate);
     if (word.isEmpty ||
         meaning.isEmpty ||
         word == answerWord ||
-        meaning == answerMeaning ||
+        areDistractorMeaningsAmbiguous(candidateMeaningRaw, answerMeaningRaw) ||
+        (requireMatchingPartOfSpeech &&
+            answerPart.isNotEmpty &&
+            candidatePart != answerPart) ||
         !uniqueWords.add(word) ||
         !uniqueMeanings.add(meaning)) {
       continue;
@@ -157,6 +245,7 @@ List<String> buildPrioritizedDistractorChoices({
   required math.Random random,
   int choiceCount = 4,
   bool excludeReviewExcluded = false,
+  bool requireMatchingPartOfSpeech = false,
 }) {
   final correct = _distractorText(answer, optionField);
   if (correct.isEmpty || choiceCount <= 0) return const [];
@@ -167,6 +256,7 @@ List<String> buildPrioritizedDistractorChoices({
             count: choiceCount - 1,
             random: random,
             excludeReviewExcluded: excludeReviewExcluded,
+            requireMatchingPartOfSpeech: requireMatchingPartOfSpeech,
           )
           .map((item) => _distractorText(item, optionField))
           .where((item) => item.isNotEmpty);

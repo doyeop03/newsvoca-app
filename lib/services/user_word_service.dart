@@ -472,6 +472,14 @@ class UserWordService {
         'topic_label_ko': _stringValue(wordData['topic_label_ko']),
       if (_stringValue(wordData['level']).isNotEmpty)
         'level': _stringValue(wordData['level']),
+      if (_stringValue(wordData['part_of_speech']).isNotEmpty)
+        'part_of_speech': _stringValue(wordData['part_of_speech']),
+      if (_stringValue(wordData['source_issue_id']).isNotEmpty)
+        'source_issue_id': _stringValue(wordData['source_issue_id']),
+      if (_stringValue(wordData['source_article_url']).isNotEmpty)
+        'source_article_url': _stringValue(wordData['source_article_url']),
+      if (_stringValue(wordData['learned_date']).isNotEmpty)
+        'learned_date': _stringValue(wordData['learned_date']),
     };
   }
 

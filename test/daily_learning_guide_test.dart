@@ -42,6 +42,18 @@ void main() {
     actualWordCount: 0,
   );
 
+  const navigationLearningSet = IntegratedDailyLearningSet(
+    date: '2026-08-06',
+    words: [
+      {'word': 'first', 'meaning': '첫 번째', 'category': 'world'},
+      {'word': 'second', 'meaning': '두 번째', 'category': 'world'},
+      {'word': 'third', 'meaning': '세 번째', 'category': 'world'},
+    ],
+    categories: ['world'],
+    requestedGoal: 3,
+    actualWordCount: 3,
+  );
+
   setUp(() {
     SharedPreferences.setMockInitialValues({});
   });
@@ -115,6 +127,64 @@ void main() {
     expect(find.text('sanction'), findsOneWidget);
     expect(find.text('1/1'), findsOneWidget);
     expect(find.text('데일리 퀴즈 풀기'), findsOneWidget);
+  });
+
+  testWidgets('word navigation lives after the content and respects bounds', (
+    tester,
+  ) async {
+    await pumpLearning(
+      tester,
+      set: navigationLearningSet,
+      shouldShow: () async => false,
+    );
+
+    expect(find.text('first'), findsOneWidget);
+    expect(find.text('이전 단어'), findsNothing);
+    await tester.scrollUntilVisible(
+      find.text('다음 단어'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('다음 단어'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('second'), findsOneWidget);
+    expect(find.text('이전 단어'), findsOneWidget);
+    expect(find.text('다음 단어'), findsOneWidget);
+    await tester.tap(find.text('다음 단어'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('third'), findsOneWidget);
+    expect(find.text('이전 단어'), findsOneWidget);
+    expect(find.text('다음 단어'), findsNothing);
+    expect(find.text('데일리 퀴즈 풀기'), findsOneWidget);
+  });
+
+  testWidgets('app bar back asks for confirmation before leaving learning', (
+    tester,
+  ) async {
+    await pumpLearning(tester, shouldShow: () async => false);
+
+    final appBarBack = find.descendant(
+      of: find.byType(AppBar),
+      matching: find.byIcon(Icons.arrow_back_rounded),
+    );
+    await tester.tap(appBarBack);
+    await tester.pumpAndSettle();
+
+    expect(find.text('학습을 종료할까요?'), findsOneWidget);
+    expect(find.text('나가면 현재 학습 중인 내용이 저장되지 않습니다.'), findsOneWidget);
+    await tester.tap(find.text('계속 학습하기'));
+    await tester.pumpAndSettle();
+    expect(find.byType(WordDetailScreen), findsOneWidget);
+
+    await tester.tap(appBarBack);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('나가기'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(HomeScreen), findsOneWidget);
+    expect(find.byType(WordDetailScreen), findsNothing);
   });
 
   testWidgets('close allows the guide on a later learning visit', (

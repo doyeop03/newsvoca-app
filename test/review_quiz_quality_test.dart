@@ -181,4 +181,64 @@ void main() {
     expect(choices.toSet(), hasLength(4));
     expect(choices.where((choice) => choice == 'air dominance'), hasLength(1));
   });
+
+  test(
+    'review cloze choices exclude candidates with a different part of speech',
+    () {
+      final answer = <String, dynamic>{
+        'word': 'disclosure',
+        'meaning': '공개, 밝힘',
+        'category': 'economy',
+        'topic': 'corporate',
+        'part_of_speech': 'noun',
+      };
+      final choices = buildReviewChoiceOptions(
+        correctAnswer: 'disclosure',
+        answerWordData: answer,
+        words: [
+          answer,
+          {
+            'word': 'statement',
+            'meaning': '성명',
+            'category': 'economy',
+            'topic': 'corporate',
+            'part_of_speech': 'noun',
+          },
+          {
+            'word': 'reporting',
+            'meaning': '보고',
+            'category': 'economy',
+            'topic': 'corporate',
+            'part_of_speech': 'noun',
+          },
+          {
+            'word': 'announcement',
+            'meaning': '발표',
+            'category': 'economy',
+            'topic': 'corporate',
+            'part_of_speech': 'noun',
+          },
+          {
+            'word': 'reveal',
+            'meaning': '드러내다',
+            'category': 'economy',
+            'topic': 'corporate',
+            'part_of_speech': 'verb',
+          },
+        ],
+        useMeaning: false,
+        random: math.Random(11),
+        requireMatchingPartOfSpeech: true,
+      );
+
+      expect(choices, hasLength(4));
+      expect(choices, isNot(contains('reveal')));
+      expect(choices.toSet(), {
+        'disclosure',
+        'statement',
+        'reporting',
+        'announcement',
+      });
+    },
+  );
 }

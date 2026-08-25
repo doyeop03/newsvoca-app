@@ -180,6 +180,8 @@ class _MyPageScreenState extends State<MyPageScreen> {
     );
   }
 
+  // Kept for a future personalization rollout; V2 has no visible entry.
+  // ignore: unused_element
   Future<void> _openInterestCategories(BuildContext context) async {
     final changed = await Navigator.push<bool>(
       context,
@@ -430,13 +432,6 @@ class _MyPageScreenState extends State<MyPageScreen> {
               Text('학습 설정', style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: 12),
               _MenuTile(
-                icon: Icons.tune_rounded,
-                title: '관심 분야 설정',
-                color: Color(0xFFE8E9ED),
-                iconColor: Color(0xFF6B7280),
-                onTap: () => _openInterestCategories(context),
-              ),
-              _MenuTile(
                 icon: Icons.notifications_none_rounded,
                 title: '학습 알림 설정',
                 color: const Color(0xFFE8E9ED),
@@ -537,6 +532,8 @@ class AccountManagementPage extends StatelessWidget {
     }
   }
 
+  // Kept for a future personalization rollout; V2 has no visible entry.
+  // ignore: unused_element
   Future<void> _openInterestCategories(BuildContext context) async {
     await Navigator.push<bool>(
       context,
@@ -629,13 +626,6 @@ class AccountManagementPage extends StatelessWidget {
                 color: const Color(0xFFE8F0FF),
                 iconColor: _blue,
                 onTap: () => _sendPasswordReset(context),
-              ),
-              _MenuTile(
-                icon: Icons.tune_rounded,
-                title: '관심 분야 수정',
-                color: const Color(0xFFE8E9ED),
-                iconColor: const Color(0xFF6B7280),
-                onTap: () => _openInterestCategories(context),
               ),
               _MenuTile(
                 icon: Icons.logout_rounded,

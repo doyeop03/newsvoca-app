@@ -94,6 +94,7 @@ class ReviewQuizPage extends StatefulWidget {
   const ReviewQuizPage({
     super.key,
     required this.reviewWords,
+    this.questionLimit,
     this.dailyLearningFlow = false,
     this.dailyCorrectCount = 0,
     this.dailyQuestionCount = 0,
@@ -117,6 +118,7 @@ class ReviewQuizPage extends StatefulWidget {
   });
 
   final List<Map<String, dynamic>> reviewWords;
+  final int? questionLimit;
   final bool dailyLearningFlow;
   final int dailyCorrectCount;
   final int dailyQuestionCount;
@@ -152,6 +154,8 @@ class ReviewQuizPage extends StatefulWidget {
 class _ReviewQuizPageState extends State<ReviewQuizPage> {
   late final List<_ReviewQuestion> _questions = _buildReviewQuestions(
     widget.reviewWords,
+    limit: widget.questionLimit,
+    distractorWords: [...widget.reviewWords, ...widget.learnedWords],
   );
   int _questionIndex = 0;
   int? _selectedIndex;
@@ -585,11 +589,6 @@ class _ReviewQuizPageState extends State<ReviewQuizPage> {
                     else if (!_completed)
                       Column(
                         children: [
-                          if (widget.dailyLearningFlow &&
-                              _questionIndex == 0) ...[
-                            const _ReviewIntroCard(),
-                            const SizedBox(height: 16),
-                          ],
                           _ReviewQuestionView(
                             key: ValueKey('review-question-$_questionIndex'),
                             question: _question,
@@ -1689,51 +1688,6 @@ class _IntegratedScoreLine extends StatelessWidget {
   }
 }
 
-class _ReviewIntroCard extends StatelessWidget {
-  const _ReviewIntroCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: _clayDecoration(
-        color: const Color(0xFFFFFBFF),
-        radius: 20,
-        shadowColor: const Color(0xFF9EA0B7),
-      ),
-      child: const Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Icon(Icons.refresh_rounded, color: _blue, size: 28),
-          SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '지금부터는 복습 문제예요',
-                  style: TextStyle(
-                    color: _ink,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  '오늘 학습한 단어와 저장한 단어를 다시 확인해요.',
-                  style: TextStyle(color: _muted, fontSize: 12, height: 1.35),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _ReviewResultLine extends StatelessWidget {
   const _ReviewResultLine({
     required this.title,
@@ -1890,8 +1844,9 @@ int reviewDistractorScore(
 
 List<Map<String, dynamic>> rankReviewDistractorCandidates(
   Map<String, dynamic> answer,
-  Iterable<Map<String, dynamic>> candidates,
-) {
+  Iterable<Map<String, dynamic>> candidates, {
+  bool requireMatchingPartOfSpeech = false,
+}) {
   final answerWord = normalizeReviewQuizText(_text(answer, 'word'));
   final answerMeaning = _normalizeReviewMeaning(_text(answer, 'meaning'));
   final unique = <String, Map<String, dynamic>>{};
@@ -1912,11 +1867,15 @@ List<Map<String, dynamic>> rankReviewDistractorCandidates(
     count: unique.length,
     random: math.Random(0),
     excludeReviewExcluded: true,
+    requireMatchingPartOfSpeech: requireMatchingPartOfSpeech,
   );
 }
 
-
-List<_ReviewQuestion> _buildReviewQuestions(List<Map<String, dynamic>> words) {
+List<_ReviewQuestion> _buildReviewQuestions(
+  List<Map<String, dynamic>> words, {
+  int? limit,
+  List<Map<String, dynamic>>? distractorWords,
+}) {
   final usableWords = words
       .map((word) => Map<String, dynamic>.from(word))
       .where(
@@ -1929,7 +1888,8 @@ List<_ReviewQuestion> _buildReviewQuestions(List<Map<String, dynamic>> words) {
   }
 
   final random = math.Random();
-  final plan = <_ReviewQuestionType>[
+  final choicePool = distractorWords ?? usableWords;
+  final fullPlan = <_ReviewQuestionType>[
     _ReviewQuestionType.wordToMeaning,
     _ReviewQuestionType.wordToMeaning,
     _ReviewQuestionType.wordToMeaning,
@@ -1946,6 +1906,7 @@ List<_ReviewQuestion> _buildReviewQuestions(List<Map<String, dynamic>> words) {
     _ReviewQuestionType.sentenceMeaning,
     _ReviewQuestionType.sentenceMeaning,
   ];
+  final plan = fullPlan.take(limit ?? fullPlan.length).toList();
 
   final spellingWords = usableWords.where(isReviewSpellingCandidate).toList()
     ..shuffle(random);
@@ -1961,7 +1922,7 @@ List<_ReviewQuestion> _buildReviewQuestions(List<Map<String, dynamic>> words) {
         _buildReviewQuestion(
           _ReviewQuestionType.spelling,
           spellingWords[index],
-          usableWords,
+          choicePool,
           random,
         ),
       );
@@ -1982,7 +1943,7 @@ List<_ReviewQuestion> _buildReviewQuestions(List<Map<String, dynamic>> words) {
         ? exampleWords
         : usableWords;
     final wordData = sourceWords[index % sourceWords.length];
-    questions.add(_buildReviewQuestion(type, wordData, usableWords, random));
+    questions.add(_buildReviewQuestion(type, wordData, choicePool, random));
   }
   questions.shuffle(random);
 
@@ -2101,6 +2062,22 @@ _ReviewQuestion _buildReviewQuestion(
           random,
         );
       }
+      final blankChoices = buildReviewChoiceOptions(
+        correctAnswer: word,
+        answerWordData: wordData,
+        words: words,
+        useMeaning: false,
+        random: random,
+        requireMatchingPartOfSpeech: true,
+      );
+      if (blankChoices.length < 4) {
+        return _buildReviewQuestion(
+          _ReviewQuestionType.wordToMeaning,
+          wordData,
+          words,
+          random,
+        );
+      }
       return _ReviewQuestion(
         type: type,
         wordData: wordData,
@@ -2108,13 +2085,7 @@ _ReviewQuestion _buildReviewQuestion(
         prompt: '빈칸에 들어갈 단어를 고르세요.',
         body: blankedExample,
         correctAnswer: word,
-        choices: buildReviewChoiceOptions(
-          correctAnswer: word,
-          answerWordData: wordData,
-          words: words,
-          useMeaning: false,
-          random: random,
-        ),
+        choices: blankChoices,
         choiceMeanings: _reviewChoiceMeanings(words),
         hintKo: _text(wordData, 'hint_ko'),
         sentenceKo: _text(wordData, 'sentence_ko'),
@@ -2198,9 +2169,14 @@ List<String> buildReviewChoiceOptions({
   required List<Map<String, dynamic>> words,
   required bool useMeaning,
   required math.Random random,
+  bool requireMatchingPartOfSpeech = false,
 }) {
   final correct = correctAnswer.trim();
-  final ranked = rankReviewDistractorCandidates(answerWordData, words);
+  final ranked = rankReviewDistractorCandidates(
+    answerWordData,
+    words,
+    requireMatchingPartOfSpeech: requireMatchingPartOfSpeech,
+  );
   final normalizedCorrect = useMeaning
       ? _normalizeReviewMeaning(correct)
       : normalizeReviewQuizText(correct);

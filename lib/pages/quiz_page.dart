@@ -864,6 +864,12 @@ class _DailyQuizPageState extends State<DailyQuizPage> {
             'example': example?.sentence ?? '',
             'example_ko': example?.translation ?? '',
             'category': category,
+            if (word.topic.isNotEmpty) 'topic': word.topic,
+            if (word.topicLabelKo.isNotEmpty)
+              'topic_label_ko': word.topicLabelKo,
+            if (word.partOfSpeech.isNotEmpty)
+              'part_of_speech': word.partOfSpeech,
+            if (word.difficulty.isNotEmpty) 'level': word.difficulty,
           };
         }),
       );
@@ -1384,18 +1390,28 @@ _DailyQuizQuestion _buildDailyQuizQuestion(
         choiceMeanings: _dailyChoiceMeanings(words),
       );
     case _DailyQuizType.blankExample:
+      final blankChoices = _dailyChoices(
+        answer: word,
+        words: words,
+        optionField: 'word',
+        random: random,
+        requireMatchingPartOfSpeech: true,
+      );
+      if (blankChoices.length < 4) {
+        return _buildDailyQuizQuestion(
+          _DailyQuizType.meaningToKorean,
+          word,
+          words,
+          random,
+        );
+      }
       return _DailyQuizQuestion(
         type: type,
         word: word,
         prompt: '빈칸에 들어갈 단어를 고르세요.',
         body: _blankExample(word.example, word.word, word.meaning),
         correctAnswer: word.word,
-        choices: _dailyChoices(
-          answer: word,
-          words: words,
-          optionField: 'word',
-          random: random,
-        ),
+        choices: blankChoices,
         choiceMeanings: _dailyChoiceMeanings(words),
         hintKo: word.exampleKo,
         sentenceKo: word.exampleKo,
@@ -1445,12 +1461,14 @@ List<String> _dailyChoices({
   required List<_DailyQuizWord> words,
   required String optionField,
   required math.Random random,
+  bool requireMatchingPartOfSpeech = false,
 }) {
   return buildPrioritizedDistractorChoices(
     answer: answer.toWordData(answer.category),
     candidates: words.map((item) => item.toWordData(item.category)),
     optionField: optionField,
     random: random,
+    requireMatchingPartOfSpeech: requireMatchingPartOfSpeech,
   );
 }
 

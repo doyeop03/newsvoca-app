@@ -660,6 +660,7 @@ class _KeyWordStudyCard extends StatelessWidget {
     final focusWord = _text('focus_word');
     final word = focusWord.isEmpty ? '핵심 단어 없음' : focusWord;
     final partOfSpeech = _text('focus_word_part_of_speech');
+    final partOfSpeechLabel = formatPartOfSpeech(partOfSpeech);
     final meaning = _text(
       'focus_word_meaning',
       focusWord.isEmpty ? '핵심 단어 뜻 없음' : focusWord,
@@ -709,10 +710,10 @@ class _KeyWordStudyCard extends StatelessWidget {
                         ),
                       ),
                     ],
-                    if (partOfSpeech.isNotEmpty) ...[
+                    if (partOfSpeechLabel.isNotEmpty) ...[
                       const SizedBox(height: 3),
                       Text(
-                        partOfSpeech,
+                        partOfSpeechLabel,
                         style: const TextStyle(color: _muted, fontSize: 11),
                       ),
                     ],

@@ -42,6 +42,36 @@ void main() {
     ]);
   });
 
+  test('supports requested words and a phrase next to punctuation', () {
+    final cases = {
+      'Companies continue to reinvest profits.': 'reinvest',
+      'Demand became a TAILWIND for growth.': 'tailwind',
+      'The court may strike down, the rule.': 'strike down',
+    };
+
+    for (final entry in cases.entries) {
+      final spans = buildHighlightedTextSpans(entry.key, entry.value);
+      expect(combinedText(spans), entry.key);
+      expect(highlighted(spans), hasLength(1));
+    }
+  });
+
+  test('highlights natural inflections of a dictionary-form keyword', () {
+    final cases = {
+      'The company woos customers with innovative products.': 'woo',
+      'She studies the market before investing.': 'study',
+      'The policy was launched yesterday.': 'launch',
+      'The executive stepped down.': 'step down',
+      'Several rate hikes changed expectations.': 'rate hike',
+    };
+
+    for (final entry in cases.entries) {
+      final spans = buildHighlightedTextSpans(entry.key, entry.value);
+      expect(combinedText(spans), entry.key);
+      expect(highlighted(spans), hasLength(1), reason: entry.key);
+    }
+  });
+
   test('returns unstyled text when keyword is empty or absent', () {
     for (final keyword in ['', 'diplomacy']) {
       final spans = buildHighlightedTextSpans('No matching term.', keyword);

@@ -1,5 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'issue_quiz_completion_service.dart';
+
 class AppLocalDataService {
   static const _exactKeys = <String>{
     'hasCompletedIntroOnboarding',
@@ -18,7 +20,9 @@ class AppLocalDataService {
     final preferences = await SharedPreferences.getInstance();
     final appKeys = preferences.getKeys().where(
       (key) =>
-          _exactKeys.contains(key) || key.startsWith(_dailyQuizCompletedPrefix),
+          _exactKeys.contains(key) ||
+          key.startsWith(_dailyQuizCompletedPrefix) ||
+          key.startsWith(IssueQuizCompletionService.keyPrefix),
     );
 
     for (final key in appKeys.toList(growable: false)) {

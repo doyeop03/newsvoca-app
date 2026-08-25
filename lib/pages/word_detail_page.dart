@@ -27,12 +27,12 @@ class _WordDetailScreenState extends State<WordDetailScreen>
   final Set<String> _savedWords = {};
   Set<String> _completedArticleIds = {};
   List<LearningWord> _words = const [];
+  DailyIssueSet? _dailyIssueSet;
   bool _isLoading = true;
   String? _emptyMessage;
   String? _loadedLearningDate;
   Timer? _publishTimer;
   bool _hasUnsavedLearningProgress = true;
-  bool _allowExit = false;
   bool _hasCheckedDailyLearningGuide = false;
 
   LearningWord get _word => _words[_wordIndex];
@@ -101,16 +101,20 @@ class _WordDetailScreenState extends State<WordDetailScreen>
     _loadedLearningDate = date;
     // ignore: avoid_print
     print('Daily word date: $date');
+    DailyIssueSet? loadedIssueSet = widget.integratedSet?.dailyIssueSet;
+    if (widget.integratedSet == null) {
+      loadedIssueSet = await DailyIssueService().load(date: date);
+    }
     final data = widget.integratedSet == null
-        ? await DailyWordService().getDailyWordSet(
-            date: date,
-            category: widget.category,
-          )
+        ? (loadedIssueSet == null
+              ? null
+              : <String, dynamic>{'words': loadedIssueSet.learningWords})
         : <String, dynamic>{'words': widget.integratedSet!.words};
 
     if (!mounted) {
       return;
     }
+    _dailyIssueSet = loadedIssueSet;
 
     if (data == null) {
       setState(() {
@@ -372,13 +376,17 @@ class _WordDetailScreenState extends State<WordDetailScreen>
       await Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => DailyQuizPage(
-            category: widget.integratedSet == null ? widget.category : 'daily',
-            words: _words,
-            learningDate: _loadedLearningDate ?? appDateString(),
-            categories: widget.integratedSet?.categories ?? const [],
-            dailyWordGoal: widget.integratedSet?.requestedGoal,
-          ),
+          builder: (_) => _dailyIssueSet != null
+              ? IssueQuizPage(issueSet: _dailyIssueSet!, issueIndex: 0)
+              : DailyQuizPage(
+                  category: widget.integratedSet == null
+                      ? widget.category
+                      : 'daily',
+                  words: _words,
+                  learningDate: _loadedLearningDate ?? appDateString(),
+                  categories: widget.integratedSet?.categories ?? const [],
+                  dailyWordGoal: widget.integratedSet?.requestedGoal,
+                ),
         ),
       );
       if (mounted) {
@@ -422,100 +430,7 @@ class _WordDetailScreenState extends State<WordDetailScreen>
     if (!_hasUnsavedLearningProgress) return true;
     // ignore: avoid_print
     print('[learning-exit] show confirm dialog');
-    final shouldExit = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => Dialog(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 28),
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: const Color(0xFFFFFBFF),
-            borderRadius: BorderRadius.circular(28),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.78),
-              width: 1.3,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF9EA0B7).withValues(alpha: 0.22),
-                blurRadius: 30,
-                spreadRadius: 1,
-                offset: const Offset(12, 16),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                '학습을 종료할까요?',
-                style: TextStyle(
-                  color: _ink,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                '나가면 현재 학습 중인 내용이 저장되지 않습니다.',
-                style: TextStyle(color: _muted, fontSize: 13, height: 1.5),
-              ),
-              const SizedBox(height: 22),
-              Row(
-                children: [
-                  Expanded(
-                    child: SizedBox(
-                      height: 50,
-                      child: FilledButton(
-                        onPressed: () => Navigator.pop(dialogContext, true),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFFE8F0FF),
-                          foregroundColor: _blue,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                        child: const Text(
-                          '나가기',
-                          style: TextStyle(fontWeight: FontWeight.w900),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    flex: 2,
-                    child: SizedBox(
-                      height: 50,
-                      child: FilledButton(
-                        onPressed: () => Navigator.pop(dialogContext, false),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: _blue,
-                          foregroundColor: Colors.white,
-                          elevation: 3,
-                          shadowColor: const Color(0x665B8EF3),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                        child: const Text(
-                          '계속 학습하기',
-                          style: TextStyle(fontWeight: FontWeight.w900),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+    final shouldExit = await _showLearningExitConfirmation(context);
     if (shouldExit == true) {
       // ignore: avoid_print
       print('[learning-exit] exit confirmed');
@@ -528,49 +443,57 @@ class _WordDetailScreenState extends State<WordDetailScreen>
 
   Future<void> _requestExitLearning() async {
     if (!await _confirmExitLearning() || !mounted) return;
-    setState(() => _allowExit = true);
-    Navigator.pop(context);
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const HomeScreen()),
+      (route) => false,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     if (_isLoading || _emptyMessage != null) {
-      return Scaffold(
-        backgroundColor: _clayBackground,
-        appBar: AppBar(
+      return PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) {
+          if (!didPop) _requestExitLearning();
+        },
+        child: Scaffold(
           backgroundColor: _clayBackground,
-          surfaceTintColor: Colors.transparent,
-          leading: IconButton(
-            onPressed: () => Navigator.maybePop(context),
-            icon: const Icon(Icons.arrow_back_rounded),
-          ),
-        ),
-        body: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [_pageBackground, _clayBackground, Color(0xFFEAF7FF)],
+          appBar: AppBar(
+            backgroundColor: _clayBackground,
+            surfaceTintColor: Colors.transparent,
+            leading: IconButton(
+              onPressed: _requestExitLearning,
+              icon: const Icon(Icons.arrow_back_rounded),
             ),
           ),
-          child: Center(
-            child: _isLoading
-                ? const CircularProgressIndicator()
-                : Padding(
-                    padding: const EdgeInsets.all(22),
-                    child: Text(
-                      _emptyMessage!,
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.titleLarge,
+          body: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [_pageBackground, _clayBackground, Color(0xFFEAF7FF)],
+              ),
+            ),
+            child: Center(
+              child: _isLoading
+                  ? const CircularProgressIndicator()
+                  : Padding(
+                      padding: const EdgeInsets.all(22),
+                      child: Text(
+                        _emptyMessage!,
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
                     ),
-                  ),
+            ),
           ),
         ),
       );
     }
 
     return PopScope(
-      canPop: _allowExit || !_hasUnsavedLearningProgress,
+      canPop: false,
       onPopInvokedWithResult: (didPop, result) {
         if (!didPop) _requestExitLearning();
       },
@@ -595,7 +518,7 @@ class _WordDetailScreenState extends State<WordDetailScreen>
           child: SafeArea(
             top: false,
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(22, 8, 22, 125),
+              padding: const EdgeInsets.fromLTRB(22, 8, 22, 35),
               children: [
                 AnimatedSwitcher(
                   duration: const Duration(milliseconds: 280),
@@ -675,69 +598,24 @@ class _WordDetailScreenState extends State<WordDetailScreen>
                             ),
                           );
                         }),
+                      const SizedBox(height: 30),
+                      _LearningWordNavigationButtons(
+                        previousEnabled: _wordIndex > 0,
+                        nextEnabled: !_isLastWord,
+                        onPrevious: _showPreviousWord,
+                        onNext: _showNextWord,
+                        showDisabledButtons: false,
+                      ),
+                      if (_isLastWord) ...[
+                        const SizedBox(height: 12),
+                        _PrimaryButton(
+                          label: _dailyIssueSet == null
+                              ? '데일리 퀴즈 풀기'
+                              : '이슈 퀴즈 시작하기',
+                          onTap: _showNextWord,
+                        ),
+                      ],
                     ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        bottomNavigationBar: SafeArea(
-          bottom: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(22, 10, 22, 10),
-            child: Row(
-              children: [
-                if (_wordIndex > 0 && !_isLastWord)
-                  Expanded(
-                    child: SizedBox(
-                      height: 56,
-                      child: OutlinedButton.icon(
-                        onPressed: _showPreviousWord,
-                        icon: const Icon(Icons.arrow_back_rounded),
-                        label: const Text('이전 단어'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: _blue,
-                          backgroundColor: Colors.white,
-                          side: const BorderSide(color: Color(0xFFE1E5EF)),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(17),
-                          ),
-                          textStyle: const TextStyle(
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                if (_wordIndex > 0 && !_isLastWord) const SizedBox(width: 10),
-                Expanded(
-                  child: SizedBox(
-                    height: 56,
-                    child: FilledButton(
-                      onPressed: _showNextWord,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: _blue,
-                        foregroundColor: Colors.white,
-                        shadowColor: const Color(0x665B8EF3),
-                        elevation: 3,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(17),
-                        ),
-                        textStyle: const TextStyle(fontWeight: FontWeight.w900),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(_isLastWord ? '데일리 퀴즈 풀기' : '다음 단어'),
-                          if (!_isLastWord) ...[
-                            const SizedBox(width: 8),
-                            const Icon(Icons.arrow_forward_rounded),
-                          ],
-                        ],
-                      ),
-                    ),
                   ),
                 ),
               ],
@@ -1538,9 +1416,9 @@ class _WordCardBack extends StatelessWidget {
   Widget build(BuildContext context) {
     final description = word.descriptionKo;
     final metadata = [
-      if (word.partOfSpeech.isNotEmpty) word.partOfSpeech,
-      if (word.difficulty.isNotEmpty) word.difficulty,
-    ];
+      formatPartOfSpeech(word.partOfSpeech),
+      formatLearningLevel(word.difficulty),
+    ].where((item) => item.isNotEmpty).toList(growable: false);
 
     return Container(
       width: double.infinity,

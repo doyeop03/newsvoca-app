@@ -31,6 +31,7 @@ class OnboardingScreen extends StatefulWidget {
 
 class _OnboardingScreenState extends State<OnboardingScreen>
     with TickerProviderStateMixin {
+  static const int _pageCount = 4;
   final PageController _pageController = PageController();
   late final AnimationController _entranceController = AnimationController(
     vsync: this,
@@ -42,11 +43,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   )..repeat(reverse: true);
   int _pageIndex = 0;
   bool _finishing = false;
-  final Set<String> _selectedCategories = {};
-  int? _dailyWordGoal;
-
-  bool get _settingsComplete =>
-      _selectedCategories.isNotEmpty && _dailyWordGoal != null;
 
   @override
   void dispose() {
@@ -62,27 +58,14 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   }
 
   Future<void> _next() async {
-    if (_pageIndex < 4) {
+    if (_pageIndex < _pageCount - 1) {
       await _pageController.nextPage(
         duration: const Duration(milliseconds: 360),
         curve: Curves.easeOutCubic,
       );
       return;
     }
-    if (!_settingsComplete) return;
     await _finish();
-  }
-
-  void _toggleCategory(String category) {
-    setState(() {
-      if (_selectedCategories.contains(category)) {
-        _selectedCategories.remove(category);
-      } else {
-        _selectedCategories.add(category);
-      }
-      final available = getAvailableDailyWordGoals(_selectedCategories.length);
-      if (!available.contains(_dailyWordGoal)) _dailyWordGoal = null;
-    });
   }
 
   Future<void> _finish() async {
@@ -93,10 +76,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     var didComplete = false;
     String? failureMessage;
     try {
-      final orderedCategories = UserPreferenceService.defaultInterestCategories
-          .where(_selectedCategories.contains)
-          .toList(growable: false);
-
       if (widget.preferenceSaver == null) {
         _logOnboardingSaveStep('auth uid check start');
         final currentUser = AuthService.currentUser;
@@ -109,16 +88,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         _logOnboardingSaveStep('auth uid ready');
       }
 
-      saveStage = 'firestore_preferences';
-      _logOnboardingSaveStep('firestore preferences start');
-      await (widget.preferenceSaver ??
-              UserPreferenceService.updateLearningPreferencesForUser)(
-            userId: widget.userId,
-            categories: orderedCategories,
-            dailyWordGoal: _dailyWordGoal!,
-          )
-          .timeout(widget.preferenceSaveTimeout);
-      _logOnboardingSaveStep('firestore preferences done');
+      // V2 has no onboarding preferences. Do not overwrite the legacy
+      // category or daily_word_goal fields when onboarding completes.
 
       saveStage = 'local_completion';
       _logOnboardingSaveStep('local completion flag start');
@@ -236,30 +207,20 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                         active: _pageIndex == 3,
                       ),
                     ),
-                    _SettingsIntroPage(
-                      title: '나에게 맞게\n학습을 설정해요',
-                      description: '관심 분야와 하루 단어 수를 선택해\n나만의 학습 루틴을 만들어보세요.',
-                      animation: _entranceController,
-                      selectedCategories: _selectedCategories,
-                      dailyWordGoal: _dailyWordGoal,
-                      onCategoryTap: _toggleCategory,
-                      onGoalTap: (goal) =>
-                          setState(() => _dailyWordGoal = goal),
-                    ),
                   ],
                 ),
               ),
-              _OnboardingIndicator(currentIndex: _pageIndex),
+              _OnboardingIndicator(
+                currentIndex: _pageIndex,
+                pageCount: _pageCount,
+              ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(22, 18, 22, 16),
                 child: SizedBox(
                   width: double.infinity,
                   height: 56,
                   child: FilledButton(
-                    onPressed:
-                        _finishing || (_pageIndex == 4 && !_settingsComplete)
-                        ? null
-                        : _next,
+                    onPressed: _finishing ? null : _next,
                     style: FilledButton.styleFrom(
                       backgroundColor: _blue,
                       foregroundColor: Colors.white,
@@ -272,7 +233,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     child: Text(
                       _finishing
                           ? '저장 중...'
-                          : _pageIndex == 4
+                          : _pageIndex == _pageCount - 1
                           ? '시작하기'
                           : '다음',
                       style: const TextStyle(
@@ -401,17 +362,22 @@ class _IntroReveal extends StatelessWidget {
 }
 
 class _OnboardingIndicator extends StatelessWidget {
-  const _OnboardingIndicator({required this.currentIndex});
+  const _OnboardingIndicator({
+    required this.currentIndex,
+    required this.pageCount,
+  });
 
   final int currentIndex;
+  final int pageCount;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: List.generate(
-        5,
+        pageCount,
         (index) => AnimatedContainer(
+          key: ValueKey('onboarding_indicator_$index'),
           duration: const Duration(milliseconds: 240),
           curve: Curves.easeOut,
           width: index == currentIndex ? 26 : 8,
@@ -885,6 +851,7 @@ class _SettingsIntroPage extends StatelessWidget {
     required this.title,
     required this.description,
     required this.animation,
+    this.showCategorySelection = true,
     required this.selectedCategories,
     required this.dailyWordGoal,
     required this.onCategoryTap,
@@ -894,6 +861,7 @@ class _SettingsIntroPage extends StatelessWidget {
   final String title;
   final String description;
   final Animation<double> animation;
+  final bool showCategorySelection;
   final Set<String> selectedCategories;
   final int? dailyWordGoal;
   final ValueChanged<String> onCategoryTap;
@@ -951,6 +919,7 @@ class _SettingsIntroPage extends StatelessWidget {
                     end: 0.88,
                     offset: 16,
                     child: _SettingsIntroVisual(
+                      showCategorySelection: showCategorySelection,
                       selectedCategories: selectedCategories,
                       dailyWordGoal: dailyWordGoal,
                       onCategoryTap: onCategoryTap,
@@ -969,6 +938,7 @@ class _SettingsIntroPage extends StatelessWidget {
 
 class _SettingsIntroVisual extends StatelessWidget {
   const _SettingsIntroVisual({
+    this.showCategorySelection = true,
     required this.selectedCategories,
     required this.dailyWordGoal,
     required this.onCategoryTap,
@@ -983,6 +953,7 @@ class _SettingsIntroVisual extends StatelessWidget {
     ('society', '사회'),
   ];
 
+  final bool showCategorySelection;
   final Set<String> selectedCategories;
   final int? dailyWordGoal;
   final ValueChanged<String> onCategoryTap;
@@ -990,44 +961,48 @@ class _SettingsIntroVisual extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final availableGoals = getAvailableDailyWordGoals(
-      selectedCategories.length,
-    );
+    final availableGoals = showCategorySelection
+        ? getAvailableDailyWordGoals(selectedCategories.length)
+        : UserPreferenceService.dailyWordGoalOptions;
     return Column(
       children: [
-        _OnboardingSectionCard(
-          title: '관심 분야',
-          description: '관심 있는 뉴스를 1개 이상 선택하세요.',
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              const columns = 2;
-              const spacing = 10.0;
-              final itemWidth =
-                  (constraints.maxWidth - (spacing * (columns - 1))) / columns;
-              return Wrap(
-                alignment: WrapAlignment.start,
-                spacing: spacing,
-                runSpacing: 10,
-                children: [
-                  for (final category in _categories)
-                    SizedBox(
-                      width: itemWidth,
-                      child: _CategoryChoiceCard(
-                        label: category.$2,
-                        selected: selectedCategories.contains(category.$1),
-                        onTap: () => onCategoryTap(category.$1),
+        if (showCategorySelection)
+          _OnboardingSectionCard(
+            title: '관심 분야',
+            description: '관심 있는 뉴스를 1개 이상 선택하세요.',
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                const columns = 2;
+                const spacing = 10.0;
+                final itemWidth =
+                    (constraints.maxWidth - (spacing * (columns - 1))) /
+                    columns;
+                return Wrap(
+                  alignment: WrapAlignment.start,
+                  spacing: spacing,
+                  runSpacing: 10,
+                  children: [
+                    for (final category in _categories)
+                      SizedBox(
+                        width: itemWidth,
+                        child: _CategoryChoiceCard(
+                          label: category.$2,
+                          selected: selectedCategories.contains(category.$1),
+                          onTap: () => onCategoryTap(category.$1),
+                        ),
                       ),
-                    ),
-                ],
-              );
-            },
+                  ],
+                );
+              },
+            ),
           ),
-        ),
         Padding(
-          padding: const EdgeInsets.only(top: 16),
+          padding: EdgeInsets.only(top: showCategorySelection ? 16 : 0),
           child: _OnboardingSectionCard(
             title: '하루 학습 단어 수',
-            description: '선택한 관심 분야 수에 따라 가능한 개수가 달라져요.',
+            description: showCategorySelection
+                ? '선택한 관심 분야 수에 따라 가능한 개수가 달라져요.'
+                : '하루에 학습할 단어 수를 선택하세요.',
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1049,31 +1024,33 @@ class _SettingsIntroVisual extends StatelessWidget {
                     ],
                   ],
                 ),
-                const SizedBox(height: 14),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(
-                      Icons.info_outline_rounded,
-                      color: Color(0xFF6B82B8),
-                      size: 18,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        '분야별 하루 3개의 단어가 준비돼요. '
-                        '9개는 3개 분야부터, 15개는 5개 분야부터 선택할 수 있어요. '
-                        '(${selectedCategories.length}개 분야 선택)',
-                        style: const TextStyle(
-                          color: Color(0xFF667085),
-                          fontSize: 13,
-                          height: 1.45,
-                          fontWeight: FontWeight.w600,
+                if (showCategorySelection) ...[
+                  const SizedBox(height: 14),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(
+                        Icons.info_outline_rounded,
+                        color: Color(0xFF6B82B8),
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '분야별 하루 3개의 단어가 준비돼요. '
+                          '9개는 3개 분야부터, 15개는 5개 분야부터 선택할 수 있어요. '
+                          '(${selectedCategories.length}개 분야 선택)',
+                          style: const TextStyle(
+                            color: Color(0xFF667085),
+                            fontSize: 13,
+                            height: 1.45,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),

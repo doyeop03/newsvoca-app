@@ -224,6 +224,119 @@ void main() {
       expect(selected, hasLength(3));
     });
 
+    test('prioritizes same topic and part of speech before other tiers', () {
+      final selected = selectDistractorWordData(
+        answer: answer,
+        candidates: [
+          wordData(
+            'announce',
+            '발표하다',
+            category: 'economy',
+            topic: 'monetary_policy',
+            partOfSpeech: 'verb',
+          ),
+          wordData(
+            'liquidity',
+            '유동성',
+            category: 'economy',
+            topic: 'monetary_policy',
+            partOfSpeech: 'noun',
+          ),
+          wordData(
+            'deflation',
+            '디플레이션',
+            category: 'economy',
+            topic: 'monetary_policy',
+            partOfSpeech: 'noun',
+          ),
+          wordData(
+            'recession',
+            '경기 침체',
+            category: 'economy',
+            topic: 'business_cycle',
+            partOfSpeech: 'noun',
+          ),
+        ],
+        count: 3,
+        random: math.Random(8),
+      );
+
+      expect(selected.take(2).map((item) => item['word']).toSet(), {
+        'liquidity',
+        'deflation',
+      });
+      expect(selected[2]['word'], 'announce');
+    });
+
+    test('cloze mode accepts only grammar-compatible part of speech', () {
+      final selected = selectDistractorWordData(
+        answer: answer,
+        candidates: [
+          wordData(
+            'liquidity',
+            '유동성',
+            category: 'economy',
+            topic: 'monetary_policy',
+            partOfSpeech: 'noun',
+          ),
+          wordData(
+            'deflation',
+            '디플레이션',
+            category: 'economy',
+            topic: 'monetary_policy',
+            partOfSpeech: 'noun',
+          ),
+          wordData(
+            'recession',
+            '경기 침체',
+            category: 'economy',
+            topic: 'business_cycle',
+            partOfSpeech: 'noun',
+          ),
+          wordData(
+            'tighten',
+            '긴축하다',
+            category: 'economy',
+            topic: 'monetary_policy',
+            partOfSpeech: 'verb',
+          ),
+        ],
+        count: 3,
+        random: math.Random(9),
+        requireMatchingPartOfSpeech: true,
+      );
+
+      expect(selected, hasLength(3));
+      expect(
+        selected.every((item) => item['part_of_speech'] == 'noun'),
+        isTrue,
+      );
+      expect(selected.map((item) => item['word']), isNot(contains('tighten')));
+    });
+
+    test('removes lemma variants and overlapping Korean equivalents', () {
+      final selected = selectDistractorWordData(
+        answer: wordData('investor', '투자자, 출자자', partOfSpeech: 'noun'),
+        candidates: [
+          wordData('investors', '시장 참여자', partOfSpeech: 'noun'),
+          wordData('shareholder', '주주, 투자자', partOfSpeech: 'noun'),
+          wordData('creditor', '채권자', partOfSpeech: 'noun'),
+          wordData('borrower', '차입자', partOfSpeech: 'noun'),
+        ],
+        count: 3,
+        random: math.Random(10),
+      );
+
+      expect(
+        selected.map((item) => item['word']),
+        isNot(contains('investors')),
+      );
+      expect(
+        selected.map((item) => item['word']),
+        isNot(contains('shareholder')),
+      );
+    });
+
     test('choice builder returns four unique options including one answer', () {
       final choices = buildPrioritizedDistractorChoices(
         answer: answer,

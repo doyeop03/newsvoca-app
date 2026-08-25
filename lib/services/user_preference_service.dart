@@ -66,9 +66,8 @@ class UserPreferenceService {
       selectedCategoryCount: resolvedCategories.length,
     );
 
-    if (categories.isEmpty || data?['daily_word_goal'] != goal) {
+    if (data?['daily_word_goal'] != goal) {
       await ref.set({
-        'interest_categories': resolvedCategories,
         'daily_word_goal': goal,
         'updated_at': FieldValue.serverTimestamp(),
         if (!snapshot.exists) 'created_at': FieldValue.serverTimestamp(),
@@ -118,6 +117,20 @@ class UserPreferenceService {
     );
     await _firestore.collection('users').doc(userId).set({
       'interest_categories': sanitized,
+      'daily_word_goal': normalizedGoal,
+      'updated_at': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  static Future<void> updateV2LearningPreferencesForUser({
+    required String userId,
+    required List<String> categories,
+    required int dailyWordGoal,
+  }) async {
+    // V2 does not ask for categories. Keep any existing interest_categories
+    // field untouched so it remains available for future personalization.
+    final normalizedGoal = sanitizeDailyWordGoal(dailyWordGoal);
+    await _firestore.collection('users').doc(userId).set({
       'daily_word_goal': normalizedGoal,
       'updated_at': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
