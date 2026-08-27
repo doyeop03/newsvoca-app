@@ -51,6 +51,9 @@ migrate_working_dir/
 **/*serviceAccount*.json
 **/*credentials*.json
 
+# Firebase Apple client configuration is transferred separately for test devices.
+ios/Runner/GoogleService-Info.plist
+
 # Packaged application artifacts
 *.apk
 *.aab
