@@ -79,7 +79,7 @@ class _QuizScreenState extends State<QuizScreen> {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [_pageBackground, _clayBackground, Color(0xFFEAF7FF)],
+            colors: [_pageBackground, _pageBackground, _pageBackground],
           ),
         ),
         child: SafeArea(
@@ -911,7 +911,7 @@ class _DailyQuizPageState extends State<DailyQuizPage> {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [_pageBackground, _clayBackground, Color(0xFFEAF7FF)],
+            colors: [_pageBackground, _pageBackground, _pageBackground],
           ),
         ),
         child: SafeArea(

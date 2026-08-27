@@ -119,7 +119,7 @@ class _InterestCategoryPageState extends State<InterestCategoryPage> {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [_pageBackground, _clayBackground, Color(0xFFEAF7FF)],
+            colors: [_pageBackground, _pageBackground, _pageBackground],
           ),
         ),
         child: SafeArea(

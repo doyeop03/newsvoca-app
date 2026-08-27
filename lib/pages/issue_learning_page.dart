@@ -117,7 +117,7 @@ class IssueLearningPage extends StatelessWidget {
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [_pageBackground, _clayBackground, Color(0xFFEAF7FF)],
+              colors: [_pageBackground, _pageBackground, _pageBackground],
             ),
           ),
           child: ListView(
@@ -565,7 +565,7 @@ class _IssueQuizPageState extends State<IssueQuizPage> {
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [_pageBackground, _clayBackground, Color(0xFFEAF7FF)],
+              colors: [_pageBackground, _pageBackground, _pageBackground],
             ),
           ),
           child: quizQuestions == null

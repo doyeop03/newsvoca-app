@@ -162,7 +162,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [_pageBackground, Color(0xFFFFFBFF), Color(0xFFEAF5FF)],
+            colors: [_pageBackground, _pageBackground, _pageBackground],
           ),
         ),
         child: SafeArea(

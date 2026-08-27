@@ -138,7 +138,7 @@ const _blue = Color(0xFF5B8EF3);
 const _purple = _blue;
 
 abstract final class AppColors {
-  static const pageBackground = Color(0xFFF6F0FF);
+  static const pageBackground = Color(0xFFF3F7FF);
   static const primaryText = _ink;
 }
 

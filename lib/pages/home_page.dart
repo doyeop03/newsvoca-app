@@ -165,14 +165,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _noticeBoundaryTimer?.cancel();
     final now = DateTime.now();
     final start = _manualNotice?.startAt;
-    final end = _manualNotice?.endAt?.add(
-      const Duration(milliseconds: 100),
-    );
+    final end = _manualNotice?.endAt?.add(const Duration(milliseconds: 100));
     final candidates = <DateTime>[
       ?start,
       ?end,
-    ].where((date) => date.isAfter(now)).toList()
-      ..sort();
+    ].where((date) => date.isAfter(now)).toList()..sort();
     if (candidates.isEmpty) return;
     _noticeBoundaryTimer = Timer(candidates.first.difference(now), () {
       _refreshNoticeForTimeBoundary();
@@ -465,7 +462,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [_pageBackground, _clayBackground, Color(0xFFEAF7FF)],
+            colors: [_pageBackground, _pageBackground, _pageBackground],
           ),
         ),
         child: SafeArea(
@@ -671,7 +668,7 @@ class _TodayLearningDashboardSection extends StatelessWidget {
           ),
           const SizedBox(height: 28),
           const Text(
-            '\uC624\uB298\uC758 \uD559\uC2B5',
+            '오늘의 학습',
             style: TextStyle(
               color: Color(0xFF111827),
               fontSize: 26,
@@ -680,7 +677,7 @@ class _TodayLearningDashboardSection extends StatelessWidget {
           ),
           const SizedBox(height: 5),
           const Text(
-            '\uB9E4\uC77C \uC624\uC804 6\uC2DC \uC5C5\uB370\uC774\uD2B8',
+            '매일 오전 6시 업데이트',
             style: TextStyle(
               color: Color(0xFF6B7280),
               fontSize: 13,

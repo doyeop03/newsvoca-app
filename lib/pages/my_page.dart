@@ -56,9 +56,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
 
   void _showContactLaunchFailure(BuildContext context) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('문의 페이지를 열지 못했어요.\n잠시 후 다시 시도해 주세요.'),
-      ),
+      const SnackBar(content: Text('문의 페이지를 열지 못했어요.\n잠시 후 다시 시도해 주세요.')),
     );
   }
 
@@ -382,7 +380,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [_pageBackground, _clayBackground, Color(0xFFEAF7FF)],
+            colors: [_pageBackground, _pageBackground, _pageBackground],
           ),
         ),
         child: SafeArea(
@@ -581,7 +579,7 @@ class AccountManagementPage extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [_pageBackground, _clayBackground, Color(0xFFEAF7FF)],
+            colors: [_pageBackground, _pageBackground, _pageBackground],
           ),
         ),
         child: SafeArea(

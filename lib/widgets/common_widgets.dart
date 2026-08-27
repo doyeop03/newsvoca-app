@@ -71,7 +71,9 @@ Set<String> _englishInflectionVariants(String value) {
     'find': ['finds', 'found', 'finding'],
   };
   variants.addAll(irregular[word] ?? const <String>[]);
-  if (word.endsWith('y') && word.length > 1 && !'aeiou'.contains(word[word.length - 2])) {
+  if (word.endsWith('y') &&
+      word.length > 1 &&
+      !'aeiou'.contains(word[word.length - 2])) {
     variants
       ..add('${word.substring(0, word.length - 1)}ies')
       ..add('${word.substring(0, word.length - 1)}ied')
@@ -619,7 +621,7 @@ class _FlowScaffold extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [_pageBackground, _clayBackground, Color(0xFFEAF7FF)],
+            colors: [_pageBackground, _pageBackground, _pageBackground],
           ),
         ),
         child: SafeArea(
