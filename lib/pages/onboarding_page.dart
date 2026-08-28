@@ -1,29 +1,16 @@
 part of '../main.dart';
 
-typedef OnboardingPreferenceSaver =
-    Future<void> Function({
-      required String userId,
-      required List<String> categories,
-      required int dailyWordGoal,
-    });
-
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({
     super.key,
     required this.userId,
     this.onCompleted,
-    this.preferenceSaver,
     this.completionSaver,
-    this.preferenceSaveTimeout = const Duration(seconds: 15),
-    this.completionSaveTimeout = const Duration(seconds: 5),
   });
 
   final String userId;
   final VoidCallback? onCompleted;
-  final OnboardingPreferenceSaver? preferenceSaver;
   final Future<void> Function(String uid)? completionSaver;
-  final Duration preferenceSaveTimeout;
-  final Duration completionSaveTimeout;
 
   @override
   State<OnboardingScreen> createState() => _OnboardingScreenState();
@@ -65,64 +52,35 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       );
       return;
     }
-    await _finish();
+    _finish();
   }
 
-  Future<void> _finish() async {
+  void _finish() {
     if (_finishing) return;
     setState(() => _finishing = true);
-    _logOnboardingSaveStep('save start');
-    var saveStage = 'authentication';
-    var didComplete = false;
-    String? failureMessage;
+    unawaited(_saveCompletionFlag());
+
+    final onCompleted = widget.onCompleted;
+    if (onCompleted == null) {
+      setState(() => _finishing = false);
+      return;
+    }
+    _logOnboardingSaveStep('navigate home');
+    onCompleted();
+  }
+
+  Future<void> _saveCompletionFlag() async {
+    _logOnboardingSaveStep('completion flag save start');
     try {
-      if (widget.preferenceSaver == null) {
-        _logOnboardingSaveStep('auth uid check start');
-        final currentUser = AuthService.currentUser;
-        if (currentUser == null || currentUser.isAnonymous) {
-          throw StateError('Authenticated user is unavailable.');
-        }
-        if (currentUser.uid != widget.userId) {
-          throw StateError('Authenticated user does not match onboarding.');
-        }
-        _logOnboardingSaveStep('auth uid ready');
-      }
-
-      // V2 has no onboarding preferences. Do not overwrite the legacy
-      // category or daily_word_goal fields when onboarding completes.
-
-      saveStage = 'local_completion';
-      _logOnboardingSaveStep('local completion flag start');
       await (widget.completionSaver ?? OnboardingService.setCompleted)(
         widget.userId,
-      ).timeout(widget.completionSaveTimeout);
-      _logOnboardingSaveStep('local completion flag done');
-
-      if (!mounted) return;
-      saveStage = 'navigation';
-      final onCompleted = widget.onCompleted;
-      if (onCompleted == null) {
-        throw StateError('Onboarding completion handler is unavailable.');
-      }
-      _logOnboardingSaveStep('navigate home');
-      onCompleted();
-      didComplete = true;
-    } on TimeoutException catch (error, stackTrace) {
-      _logOnboardingSaveFailure(saveStage, error, stackTrace);
-      failureMessage = '저장에 시간이 오래 걸리고 있어요. 다시 시도해 주세요.';
+      );
+      _logOnboardingSaveStep('completion flag save done');
     } catch (error, stackTrace) {
-      _logOnboardingSaveFailure(saveStage, error, stackTrace);
-      failureMessage = '학습 설정을 저장하지 못했어요. 다시 시도해 주세요.';
-    } finally {
-      if (!didComplete && mounted) {
-        setState(() => _finishing = false);
-      }
-    }
-
-    if (failureMessage != null && mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(failureMessage)));
+      // SharedPreferences failure must not trap a signed-in user on the
+      // introduction. A later login may show onboarding again, while the
+      // current session can continue safely.
+      _logOnboardingSaveFailure('local_completion', error, stackTrace);
     }
   }
 
@@ -136,17 +94,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     StackTrace stackTrace,
   ) {
     if (!kDebugMode) return;
-    if (error is FirebaseException) {
-      debugPrint(
-        '[Onboarding] save failed stage=$stage '
-        'plugin=${error.plugin} code=${error.code} message=${error.message}',
-      );
-    } else {
-      debugPrint(
-        '[Onboarding] save failed stage=$stage type=${error.runtimeType} '
-        'error=$error',
-      );
-    }
+    debugPrint(
+      '[Onboarding] save failed stage=$stage type=${error.runtimeType} '
+      'error=$error',
+    );
     debugPrintStack(
       label: '[Onboarding] save failure stack',
       stackTrace: stackTrace,
@@ -231,11 +182,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                       ),
                     ),
                     child: Text(
-                      _finishing
-                          ? '저장 중...'
-                          : _pageIndex == _pageCount - 1
-                          ? '시작하기'
-                          : '다음',
+                      _pageIndex == _pageCount - 1 ? '시작하기' : '다음',
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w800,

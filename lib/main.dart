@@ -223,7 +223,7 @@ class VocaBriefApp extends StatelessWidget {
 }
 
 class _IntroOnboardingGate extends StatefulWidget {
-  const _IntroOnboardingGate({required this.uid});
+  const _IntroOnboardingGate({super.key, required this.uid});
 
   final String uid;
 
@@ -232,27 +232,56 @@ class _IntroOnboardingGate extends StatefulWidget {
 }
 
 class _IntroOnboardingGateState extends State<_IntroOnboardingGate> {
-  late Future<bool> _completion = OnboardingService.isCompleted(widget.uid);
+  bool? _isCompleted;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCompletion();
+  }
+
+  @override
+  void didUpdateWidget(covariant _IntroOnboardingGate oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.uid != widget.uid) {
+      _isCompleted = null;
+      _loadCompletion();
+    }
+  }
+
+  Future<void> _loadCompletion() async {
+    final requestedUid = widget.uid;
+    var isCompleted = false;
+    try {
+      isCompleted = await OnboardingService.isCompleted(requestedUid);
+    } catch (error, stackTrace) {
+      if (kDebugMode) {
+        debugPrint(
+          '[OnboardingGate] completion read failed '
+          'type=${error.runtimeType} error=$error',
+        );
+        debugPrintStack(
+          label: '[OnboardingGate] completion read failure stack',
+          stackTrace: stackTrace,
+        );
+      }
+    }
+    if (!mounted || widget.uid != requestedUid) return;
+    setState(() => _isCompleted = isCompleted);
+  }
 
   void _continueToHome() {
-    setState(() => _completion = Future.value(true));
+    if (!mounted || _isCompleted == true) return;
+    setState(() => _isCompleted = true);
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<bool>(
-      future: _completion,
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return const _SplashPage();
-        if (snapshot.data == true) {
-          return const _NotificationBootstrap(child: HomeScreen());
-        }
-        return OnboardingScreen(
-          userId: widget.uid,
-          onCompleted: _continueToHome,
-        );
-      },
-    );
+    if (_isCompleted == null) return const _SplashPage();
+    if (_isCompleted == true) {
+      return const _NotificationBootstrap(child: HomeScreen());
+    }
+    return OnboardingScreen(userId: widget.uid, onCompleted: _continueToHome);
   }
 }
 
@@ -276,7 +305,7 @@ class _AuthGate extends StatelessWidget {
           return const LoginPage();
         }
 
-        return _IntroOnboardingGate(uid: user.uid);
+        return _IntroOnboardingGate(key: ValueKey(user.uid), uid: user.uid);
       },
     );
   }

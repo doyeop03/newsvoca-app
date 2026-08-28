@@ -41,10 +41,7 @@ void main() {
       find.byKey(const ValueKey('onboarding_indicator_3')),
       findsOneWidget,
     );
-    expect(
-      find.byKey(const ValueKey('onboarding_indicator_4')),
-      findsNothing,
-    );
+    expect(find.byKey(const ValueKey('onboarding_indicator_4')), findsNothing);
 
     await tester.tap(find.text('다음'));
     await tester.pump();
@@ -91,20 +88,11 @@ void main() {
   ) async {
     SharedPreferences.setMockInitialValues({});
     var completed = false;
-    var preferenceCalls = 0;
     await tester.pumpWidget(
       MaterialApp(
         home: OnboardingScreen(
           userId: 'test-user',
           onCompleted: () => completed = true,
-          preferenceSaver:
-              ({
-                required userId,
-                required categories,
-                required dailyWordGoal,
-              }) async {
-                preferenceCalls++;
-              },
           completionSaver: OnboardingService.setCompleted,
         ),
       ),
@@ -126,14 +114,11 @@ void main() {
     await tester.tap(find.text('시작하기'));
     await tester.pump();
     expect(completed, isTrue);
-    expect(preferenceCalls, 0);
 
     expect(await OnboardingService.isCompleted('test-user'), isTrue);
   });
 
-  testWidgets('legacy preference saver is not called by V2 onboarding', (
-    tester,
-  ) async {
+  testWidgets('completion save failure does not trap the user', (tester) async {
     SharedPreferences.setMockInitialValues({});
     var completionCalls = 0;
     var completed = false;
@@ -142,13 +127,10 @@ void main() {
         home: OnboardingScreen(
           userId: 'test-user',
           onCompleted: () => completed = true,
-          preferenceSaver:
-              ({
-                required userId,
-                required categories,
-                required dailyWordGoal,
-              }) => Future<void>.error(Exception('write failed')),
-          completionSaver: (_) async => completionCalls++,
+          completionSaver: (_) async {
+            completionCalls++;
+            throw Exception('local write failed');
+          },
         ),
       ),
     );
@@ -160,14 +142,14 @@ void main() {
     expect(completionCalls, 1);
     expect(completed, isTrue);
     expect(await OnboardingService.isCompleted('test-user'), isFalse);
+    expect(find.textContaining('학습 설정을 저장하지 못했어요'), findsNothing);
   });
 
-  testWidgets('a hanging completion flag save times out and can retry', (
+  testWidgets('a hanging completion flag save does not delay Home', (
     tester,
   ) async {
     SharedPreferences.setMockInitialValues({});
     final hangingCompletion = Completer<void>();
-    var preferenceCalls = 0;
     var completionCalls = 0;
     var completed = false;
 
@@ -176,15 +158,6 @@ void main() {
         home: OnboardingScreen(
           userId: 'test-user',
           onCompleted: () => completed = true,
-          completionSaveTimeout: const Duration(milliseconds: 50),
-          preferenceSaver:
-              ({
-                required userId,
-                required categories,
-                required dailyWordGoal,
-              }) async {
-                preferenceCalls++;
-              },
           completionSaver: (_) {
             completionCalls++;
             return hangingCompletion.future;
@@ -196,21 +169,13 @@ void main() {
     await _advanceToOnboardingFinish(tester);
     await tester.tap(find.text('시작하기'));
     await tester.pump();
-    expect(find.text('저장 중...'), findsOneWidget);
 
-    await tester.pump(const Duration(milliseconds: 80));
-    await tester.pump();
-
-    expect(preferenceCalls, 0);
     expect(completionCalls, 1);
-    expect(completed, isFalse);
-    expect(find.text('저장에 시간이 오래 걸리고 있어요. 다시 시도해 주세요.'), findsOneWidget);
-    expect(
-      tester
-          .widget<FilledButton>(find.widgetWithText(FilledButton, '시작하기'))
-          .onPressed,
-      isNotNull,
-    );
+    expect(completed, isTrue);
+    expect(find.text('시작하기'), findsOneWidget);
+    expect(find.text('저장 중...'), findsNothing);
+    expect(find.textContaining('학습 설정을 저장하지 못했어요'), findsNothing);
+    expect(find.textContaining('저장에 시간이 오래 걸리고 있어요'), findsNothing);
   });
 }
 
