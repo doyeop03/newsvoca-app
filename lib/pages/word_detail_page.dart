@@ -99,8 +99,6 @@ class _WordDetailScreenState extends State<WordDetailScreen>
   Future<void> _loadDailyWords() async {
     final date = widget.integratedSet?.date ?? appDateString();
     _loadedLearningDate = date;
-    // ignore: avoid_print
-    print('Daily word date: $date');
     DailyIssueSet? loadedIssueSet = widget.integratedSet?.dailyIssueSet;
     if (widget.integratedSet == null) {
       loadedIssueSet = await DailyIssueService().load(date: date);
@@ -143,42 +141,16 @@ class _WordDetailScreenState extends State<WordDetailScreen>
     final loadedWords = <LearningWord>[];
     for (final item in rawWords) {
       if (item is! Map) {
-        // ignore: avoid_print
-        print('Skipping invalid word item: $item');
         continue;
       }
 
       final currentWord = item;
       final word = _stringValue(currentWord['word']);
       if (word.isEmpty) {
-        // ignore: avoid_print
-        print('Warning: skipping word item without word field: $currentWord');
         continue;
       }
 
-      // ignore: avoid_print
-      print('Current word data: $currentWord');
-      // ignore: avoid_print
-      print('word: ${_stringValue(currentWord['word'])}');
-      // ignore: avoid_print
-      print('meaning: ${_stringValue(currentWord['meaning'])}');
-      // ignore: avoid_print
-      print('description_ko: ${_stringValue(currentWord['description_ko'])}');
-
       loadedWords.add(_wordFromMap(currentWord, word));
-    }
-
-    // ignore: avoid_print
-    print('Current word index: 0');
-    if (loadedWords.isNotEmpty) {
-      // ignore: avoid_print
-      print('Current word: ${loadedWords.first.word}');
-      // ignore: avoid_print
-      print('description_ko: ${loadedWords.first.descriptionKo}');
-      // ignore: avoid_print
-      print(
-        'Related articles count: ${loadedWords.first.relatedArticles.length}',
-      );
     }
 
     setState(() {
@@ -407,14 +379,6 @@ class _WordDetailScreenState extends State<WordDetailScreen>
       return;
     }
     setState(() => _wordIndex++);
-    // ignore: avoid_print
-    print('Current word index: $_wordIndex');
-    // ignore: avoid_print
-    print('Current word: ${_word.word}');
-    // ignore: avoid_print
-    print('description_ko: ${_word.descriptionKo}');
-    // ignore: avoid_print
-    print('Related articles count: ${_word.relatedArticles.length}');
   }
 
   void _showPreviousWord() {
@@ -425,19 +389,11 @@ class _WordDetailScreenState extends State<WordDetailScreen>
   }
 
   Future<bool> _confirmExitLearning() async {
-    // ignore: avoid_print
-    print('[learning-exit] back requested');
     if (!_hasUnsavedLearningProgress) return true;
-    // ignore: avoid_print
-    print('[learning-exit] show confirm dialog');
     final shouldExit = await _showLearningExitConfirmation(context);
     if (shouldExit == true) {
-      // ignore: avoid_print
-      print('[learning-exit] exit confirmed');
       return true;
     }
-    // ignore: avoid_print
-    print('[learning-exit] continue learning');
     return false;
   }
 
@@ -751,7 +707,7 @@ class _DailyLearningGuideDialogState extends State<_DailyLearningGuideDialog>
     final availableHeight = MediaQuery.sizeOf(context).height;
     final dialogHeight = math.min(600.0, availableHeight * 0.86);
 
-    return Dialog(
+    return _ResponsiveDialog(
       backgroundColor: Colors.transparent,
       elevation: 0,
       insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 20),
@@ -840,7 +796,7 @@ class _DailyLearningGuideDialogState extends State<_DailyLearningGuideDialog>
             Row(
               children: [
                 Expanded(
-                  child: SizedBox(
+                  child: AdaptiveButtonBox(
                     height: 46,
                     child: TextButton(
                       onPressed: _isClosing ? null : _hidePermanently,
@@ -863,7 +819,7 @@ class _DailyLearningGuideDialogState extends State<_DailyLearningGuideDialog>
                 ),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: SizedBox(
+                  child: AdaptiveButtonBox(
                     height: 46,
                     child: FilledButton(
                       onPressed: _isClosing ? null : _close,

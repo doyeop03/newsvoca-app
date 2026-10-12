@@ -266,8 +266,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         _isLoadingInterests = false;
         _syncExpandedTask();
       });
-      // ignore: avoid_print
-      print('Home visible categories: $categories');
     } catch (error) {
       // ignore: avoid_print
       print('Home interest categories load failed: $error');
@@ -405,49 +403,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  Future<void> _startReview() async {
-    final alreadyCompleted = await ReviewService.hasReviewResultForDate(
-      appDateString(),
-    );
-    if (!mounted) {
-      return;
-    }
-    if (alreadyCompleted) {
-      setState(() => _reviewCompletedToday = true);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('오늘의 복습은 이미 완료했어요.')));
-      return;
-    }
-
-    final reviewWordData = await ReviewService.getTodayReviewWords(limit: 10);
-    // ignore: avoid_print
-    print('Home review words loaded: ${reviewWordData.length}');
-
-    if (!mounted) {
-      return;
-    }
-
-    if (reviewWordData.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('오늘 복습할 단어가 아직 없습니다.')));
-      return;
-    }
-
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => ReviewQuizPage(reviewWords: reviewWordData),
-      ),
-    );
-    if (!mounted) {
-      return;
-    }
-    await _loadReviewCompletionStatus();
-    _refreshHomeStats();
-  }
-
   @override
   Widget build(BuildContext context) {
     final visibleNotice = resolveHomeNotice(
@@ -546,14 +501,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     const _LearningTask.review(),
   ];
 
-  void _toggleExpandedTask(String taskId) {
-    setState(() {
-      _selectedExpandedTaskId = _selectedExpandedTaskId == taskId
-          ? null
-          : taskId;
-    });
-  }
-
   void _syncExpandedTask() {
     final tasks = _timelineTasks;
     if (tasks.isEmpty) {
@@ -637,18 +584,6 @@ class _TodayLearningDashboardSection extends StatelessWidget {
   final bool isLoading;
   final ValueChanged<String> onStudy;
 
-  int get _completedDailyCount =>
-      (learningCompleted ? 1 : 0) + (reviewCompleted ? 1 : 0);
-
-  int get _totalDailyCount => 2;
-
-  double get _progress =>
-      _totalDailyCount == 0 ? 0 : _completedDailyCount / _totalDailyCount;
-
-  String get _reviewStatusText => reviewCompleted
-      ? '\uBCF5\uC2B5 1\uAC1C \uC644\uB8CC'
-      : '\uBCF5\uC2B5 \uBBF8\uC644\uB8CC';
-
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
@@ -714,60 +649,63 @@ class _KnowledgeMapEntryCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(24),
         child: Ink(
-          height: 138,
           padding: const EdgeInsets.fromLTRB(22, 20, 18, 20),
           decoration: _dashboardClayDecoration(radius: 24),
-          child: Row(
-            children: [
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      '나의 학습 현황',
-                      style: TextStyle(
-                        color: Color(0xFF111827),
-                        fontSize: 21,
-                        fontWeight: FontWeight.w900,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 98),
+            child: Row(
+              children: [
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        '나의 학습 현황',
+                        style: TextStyle(
+                          color: Color(0xFF111827),
+                          fontSize: 21,
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      '분야별로 얼마나 학습했는지 확인해보세요.',
-                      style: TextStyle(
-                        color: Color(0xFF667085),
-                        fontSize: 13,
-                        height: 1.4,
-                        fontWeight: FontWeight.w600,
+                      SizedBox(height: 8),
+                      Text(
+                        '분야별로 얼마나 학습했는지 확인해보세요.',
+                        style: TextStyle(
+                          color: Color(0xFF667085),
+                          fontSize: 13,
+                          height: 1.4,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: 14),
-              SizedBox(
-                width: 82,
-                height: 82,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: Transform.scale(
-                    scale: 1.42,
-                    child: Image.asset(
-                      'assets/categories/learn_count.png',
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => const Icon(
-                        Icons.bar_chart_rounded,
-                        size: 52,
-                        color: _blue,
+                const SizedBox(width: 14),
+                SizedBox(
+                  width: 82,
+                  height: 82,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: Transform.scale(
+                      scale: 1.42,
+                      child: Image.asset(
+                        'assets/categories/learn_count.png',
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) =>
+                            const Icon(
+                              Icons.bar_chart_rounded,
+                              size: 52,
+                              color: _blue,
+                            ),
                       ),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 4),
-              const Icon(Icons.chevron_right_rounded, color: _blue),
-            ],
+                const SizedBox(width: 4),
+                const Icon(Icons.chevron_right_rounded, color: _blue),
+              ],
+            ),
           ),
         ),
       ),
@@ -798,16 +736,13 @@ class _IntegratedDailyLearningCard extends StatelessWidget {
     return Semantics(
       button: canStart,
       label: completed ? countText : '$countText 학습 시작',
-      child: SizedBox(
-        height: 190,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 190),
         child: Stack(
           clipBehavior: Clip.none,
           children: [
-            Positioned(
-              left: 0,
-              right: 0,
-              top: 26,
-              bottom: 0,
+            Padding(
+              padding: const EdgeInsets.only(top: 26),
               child: Material(
                 color: Colors.transparent,
                 child: InkWell(
@@ -866,17 +801,13 @@ class _IntegratedDailyLearningCard extends StatelessWidget {
                             ),
                           ),
                         ),
-                        Positioned(
-                          left: 20,
-                          right: 124,
-                          bottom: 20,
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 75, 164, 20),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
                                 countText,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   color: completed
                                       ? const Color(0xFF465063)
@@ -890,8 +821,6 @@ class _IntegratedDailyLearningCard extends StatelessWidget {
                                 hasIssueSet
                                     ? '핵심 단어 ${learningSet?.actualWordCount ?? 0}개를 함께 학습해요'
                                     : '눌러서 최신 데이터를 다시 확인해요',
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   color: completed
                                       ? const Color(0xFF697386)
@@ -2227,8 +2156,8 @@ class _StreakBanner extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(28),
       child: Container(
-        height: 80,
-        padding: const EdgeInsets.symmetric(horizontal: 18),
+        constraints: const BoxConstraints(minHeight: 80),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
             begin: Alignment.topLeft,
@@ -2325,7 +2254,7 @@ class _MainCategoryCard extends StatelessWidget {
               ),
             ),
           ),
-          SizedBox(
+          AdaptiveButtonBox(
             width: double.infinity,
             height: 54,
             child: FilledButton(

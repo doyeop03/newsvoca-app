@@ -224,6 +224,7 @@ int _positiveInteger(dynamic value, int fallback) {
   final parsed = _integer(value);
   return parsed > 0 ? parsed : fallback;
 }
+
 Map<String, dynamic> _map(dynamic value) =>
     value is Map ? Map<String, dynamic>.from(value) : <String, dynamic>{};
 List<Map<String, dynamic>> _maps(dynamic value) => value is List

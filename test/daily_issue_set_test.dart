@@ -53,35 +53,36 @@ void main() {
     expect(set.issues.first.flow.first.description, '발표');
   });
 
-  test('normalizes map, legacy map, JSON, Python dict, and plain flow values', () {
-    final map = dailyIssueMap();
-    final issues = map['issues'] as List<Map<String, dynamic>>;
-    issues[0]['issue_flow'] = [
-      {'step': 4, 'description': '정상 Map 설명'},
-    ];
-    issues[1]['issue_flow'] = [
-      {'step_number': 2, 'description_ko': 'legacy Map 설명'},
-    ];
-    issues[2]['issue_flow'] = ['일반 문자열 설명'];
-    issues[3]['issue_flow'] = [
-      '{"step": 7, "description": "JSON 문자열 설명"}',
-    ];
-    issues[4]['issue_flow'] = [
-      "{'step': 1, 'description': '뉴질랜드 정부, 법안 도입 발표.'}",
-    ];
+  test(
+    'normalizes map, legacy map, JSON, Python dict, and plain flow values',
+    () {
+      final map = dailyIssueMap();
+      final issues = map['issues'] as List<Map<String, dynamic>>;
+      issues[0]['issue_flow'] = [
+        {'step': 4, 'description': '정상 Map 설명'},
+      ];
+      issues[1]['issue_flow'] = [
+        {'step_number': 2, 'description_ko': 'legacy Map 설명'},
+      ];
+      issues[2]['issue_flow'] = ['일반 문자열 설명'];
+      issues[3]['issue_flow'] = ['{"step": 7, "description": "JSON 문자열 설명"}'];
+      issues[4]['issue_flow'] = [
+        "{'step': 1, 'description': '뉴질랜드 정부, 법안 도입 발표.'}",
+      ];
 
-    final set = DailyIssueSet.fromMap(map);
-    expect(set.issues[0].flow.single.step, 4);
-    expect(set.issues[0].flow.single.description, '정상 Map 설명');
-    expect(set.issues[1].flow.single.step, 2);
-    expect(set.issues[1].flow.single.description, 'legacy Map 설명');
-    expect(set.issues[2].flow.single.step, 1);
-    expect(set.issues[2].flow.single.description, '일반 문자열 설명');
-    expect(set.issues[3].flow.single.step, 7);
-    expect(set.issues[3].flow.single.description, 'JSON 문자열 설명');
-    expect(set.issues[4].flow.single.step, 1);
-    expect(set.issues[4].flow.single.description, '뉴질랜드 정부, 법안 도입 발표.');
-  });
+      final set = DailyIssueSet.fromMap(map);
+      expect(set.issues[0].flow.single.step, 4);
+      expect(set.issues[0].flow.single.description, '정상 Map 설명');
+      expect(set.issues[1].flow.single.step, 2);
+      expect(set.issues[1].flow.single.description, 'legacy Map 설명');
+      expect(set.issues[2].flow.single.step, 1);
+      expect(set.issues[2].flow.single.description, '일반 문자열 설명');
+      expect(set.issues[3].flow.single.step, 7);
+      expect(set.issues[3].flow.single.description, 'JSON 문자열 설명');
+      expect(set.issues[4].flow.single.step, 1);
+      expect(set.issues[4].flow.single.description, '뉴질랜드 정부, 법안 도입 발표.');
+    },
+  );
 
   test('learning words inherit every article from the same document', () {
     final set = DailyIssueSet.fromMap(dailyIssueMap());

@@ -95,6 +95,7 @@ class ReviewQuizPage extends StatefulWidget {
     super.key,
     required this.reviewWords,
     this.questionLimit,
+    this.uniqueWordQuestions = false,
     this.dailyLearningFlow = false,
     this.dailyCorrectCount = 0,
     this.dailyQuestionCount = 0,
@@ -106,6 +107,7 @@ class ReviewQuizPage extends StatefulWidget {
     this.notifyCompletionForTest,
     this.feedbackStatusForTest,
     this.saveFeedbackForTest,
+    this.saveReviewResultForTest,
     this.completionHoldDuration = const Duration(milliseconds: 900),
     this.completionFadeDuration = const Duration(milliseconds: 220),
     this.leaveDailyFlowForTest,
@@ -119,6 +121,7 @@ class ReviewQuizPage extends StatefulWidget {
 
   final List<Map<String, dynamic>> reviewWords;
   final int? questionLimit;
+  final bool uniqueWordQuestions;
   final bool dailyLearningFlow;
   final int dailyCorrectCount;
   final int dailyQuestionCount;
@@ -141,6 +144,13 @@ class ReviewQuizPage extends StatefulWidget {
   final Duration completionFadeDuration;
   final VoidCallback? leaveDailyFlowForTest;
   final ReviewWordResultUpdater? updateReviewResultForWord;
+  final Future<void> Function(
+    int score,
+    int total,
+    List<String> wrongWords,
+    List<String> correctWords,
+  )?
+  saveReviewResultForTest;
   final ReviewWordExcluder? excludeWordFromReview;
   final ReviewWordRestorer? restoreWordToReview;
   final ReviewCompletionChecker? reviewCompletionChecker;
@@ -155,6 +165,7 @@ class _ReviewQuizPageState extends State<ReviewQuizPage> {
   late final List<_ReviewQuestion> _questions = _buildReviewQuestions(
     widget.reviewWords,
     limit: widget.questionLimit,
+    uniqueWords: widget.uniqueWordQuestions,
     distractorWords: [...widget.reviewWords, ...widget.learnedWords],
   );
   int _questionIndex = 0;
@@ -299,6 +310,7 @@ class _ReviewQuizPageState extends State<ReviewQuizPage> {
       }
     });
 
+    if (ReviewService.isTemporaryWord(_question.wordData)) return;
     final updater =
         widget.updateReviewResultForWord ??
         ReviewService.updateReviewResultForWord;
@@ -321,7 +333,9 @@ class _ReviewQuizPageState extends State<ReviewQuizPage> {
     }
     setState(() => _isExcludingCurrentWord = true);
     try {
-      if (shouldExclude) {
+      if (ReviewService.isTemporaryWord(currentWordData)) {
+        // Temporary vocabulary may only be excluded within this session.
+      } else if (shouldExclude) {
         final excluder =
             widget.excludeWordFromReview ?? ReviewService.excludeWordFromReview;
         await excluder(currentWordData);
@@ -364,7 +378,8 @@ class _ReviewQuizPageState extends State<ReviewQuizPage> {
   Future<void> _goNext() async {
     if (_questionIndex == _questions.length - 1) {
       await _saveReviewResult();
-      await LearningNotificationService.onLearningCompletedToday();
+      await (widget.notifyCompletionForTest ??
+          LearningNotificationService.onLearningCompletedToday)();
       if (!mounted) {
         return;
       }
@@ -394,13 +409,22 @@ class _ReviewQuizPageState extends State<ReviewQuizPage> {
     _resultSaved = true;
 
     try {
-      await ReviewService.saveReviewResult(
-        score: _score,
-        total: _questions.length,
-        wrongWords: _wrongWords.toList(),
-        correctWords: _correctWords.toList(),
-        date: _learningDate,
-      );
+      if (widget.saveReviewResultForTest case final save?) {
+        await save(
+          _score,
+          _questions.length,
+          _wrongWords.toList(),
+          _correctWords.toList(),
+        );
+      } else {
+        await ReviewService.saveReviewResult(
+          score: _score,
+          total: _questions.length,
+          wrongWords: _wrongWords.toList(),
+          correctWords: _correctWords.toList(),
+          date: _learningDate,
+        );
+      }
       if (widget.dailyLearningFlow) {
         if (widget.completeDailyFlowForTest != null) {
           await widget.completeDailyFlowForTest!();
@@ -574,7 +598,7 @@ class _ReviewQuizPageState extends State<ReviewQuizPage> {
               child: SafeArea(
                 top: false,
                 child: ListView(
-                  padding: const EdgeInsets.fromLTRB(22, 17, 22, 125),
+                  padding: const EdgeInsets.fromLTRB(22, 17, 22, 35),
                   children: [
                     if (_completed)
                       _ReviewResultCard(
@@ -614,8 +638,7 @@ class _ReviewQuizPageState extends State<ReviewQuizPage> {
         ),
         bottomNavigationBar: _isFinishingDailyFlow
             ? null
-            : SafeArea(
-                bottom: false,
+            : BottomActionSafeArea(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(22, 10, 22, 10),
                   child: Column(
@@ -633,7 +656,7 @@ class _ReviewQuizPageState extends State<ReviewQuizPage> {
                         ),
                         const SizedBox(height: 10),
                       ],
-                      SizedBox(
+                      AdaptiveButtonBox(
                         height: 58,
                         width: double.infinity,
                         child: _completed && widget.dailyLearningFlow
@@ -708,7 +731,7 @@ class _ReviewCurveGuideDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
+    return _ResponsiveDialog(
       backgroundColor: Colors.transparent,
       elevation: 0,
       insetPadding: const EdgeInsets.symmetric(horizontal: 28),
@@ -790,7 +813,7 @@ class _ReviewCurveGuideDialog extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: SizedBox(
+                  child: AdaptiveButtonBox(
                     height: 46,
                     child: TextButton(
                       onPressed: onHidePermanently,
@@ -813,7 +836,7 @@ class _ReviewCurveGuideDialog extends StatelessWidget {
                 ),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: SizedBox(
+                  child: AdaptiveButtonBox(
                     height: 46,
                     child: FilledButton(
                       onPressed: onClose,
@@ -1187,7 +1210,7 @@ class _ReviewSpellingInputState extends State<_ReviewSpellingInput> {
             ),
           ],
           const SizedBox(height: 10),
-          SizedBox(
+          AdaptiveButtonBox(
             width: double.infinity,
             height: 52,
             child: FilledButton(
@@ -1434,7 +1457,7 @@ class _DailyDifficultyFeedbackDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
+    return _ResponsiveDialog(
       backgroundColor: Colors.transparent,
       elevation: 0,
       insetPadding: const EdgeInsets.symmetric(horizontal: 24),
@@ -1471,7 +1494,7 @@ class _DailyDifficultyFeedbackDialog extends StatelessWidget {
                 ('just_right', '적당했어요'),
                 ('too_easy', '너무 쉬웠어요'),
               ]) ...[
-                SizedBox(
+                AdaptiveButtonBox(
                   height: 50,
                   child: OutlinedButton(
                     onPressed: () => onSelect(option.$1),
@@ -1875,6 +1898,7 @@ List<_ReviewQuestion> _buildReviewQuestions(
   List<Map<String, dynamic>> words, {
   int? limit,
   List<Map<String, dynamic>>? distractorWords,
+  bool uniqueWords = false,
 }) {
   final usableWords = words
       .map((word) => Map<String, dynamic>.from(word))
@@ -1916,6 +1940,28 @@ List<_ReviewQuestion> _buildReviewQuestions(
   );
 
   final questions = <_ReviewQuestion>[];
+  if (uniqueWords) {
+    if (plan.isEmpty) return questions;
+    final seen = <String>{};
+    var remainingSpelling = maxReviewSpellingQuestions(plan.length);
+    for (final word in usableWords) {
+      if (!hasValidArticleQuizMeaning(_text(word, 'meaning')) ||
+          !seen.add(UserWordService.wordIdFor(_text(word, 'word')))) {
+        continue;
+      }
+      final type = remainingSpelling > 0 && isReviewSpellingCandidate(word)
+          ? _ReviewQuestionType.spelling
+          : plan[questions.length];
+      final question = _buildReviewQuestion(type, word, choicePool, random);
+      if (type != _ReviewQuestionType.spelling && question.choices.length < 2) {
+        continue;
+      }
+      if (type == _ReviewQuestionType.spelling) remainingSpelling--;
+      questions.add(question);
+      if (questions.length == plan.length) break;
+    }
+    return questions;
+  }
   for (var index = 0; index < plan.length; index++) {
     if (index < spellingCount) {
       questions.add(
@@ -1951,6 +1997,26 @@ List<_ReviewQuestion> _buildReviewQuestions(
   print('ReviewQuizPage question count=${questions.length}');
   return questions;
 }
+
+@visibleForTesting
+List<Map<String, dynamic>> previewUniqueReviewQuestions(
+  List<Map<String, dynamic>> words, {
+  List<Map<String, dynamic>> distractorWords = const [],
+}) => [
+  for (final question in _buildReviewQuestions(
+    words,
+    limit: 10,
+    distractorWords: [...words, ...distractorWords],
+    uniqueWords: true,
+  ))
+    {
+      'wordData': question.wordData,
+      'choices': question.choices,
+      'correctAnswer': question.correctAnswer,
+      'body': question.body,
+      'type': question.type.name,
+    },
+];
 
 _ReviewQuestion _buildReviewQuestion(
   _ReviewQuestionType type,

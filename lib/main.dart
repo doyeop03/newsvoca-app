@@ -97,8 +97,6 @@ Future<void> main() async {
     if (kIsWeb) {
       await FirebaseAuth.instance.setPersistence(Persistence.LOCAL);
     }
-    final user = FirebaseAuth.instance.currentUser;
-    debugPrint('[auth] currentUser: ${user?.uid}, email=${user?.email}');
     runApp(const VocaBriefApp());
   } catch (error) {
     // ignore: avoid_print
@@ -298,9 +296,6 @@ class _AuthGate extends StatelessWidget {
         }
 
         final user = snapshot.data;
-        debugPrint(
-          '[auth] authStateChanges user=${user?.uid}, email=${user?.email}',
-        );
         if (user == null || user.isAnonymous) {
           return const LoginPage();
         }

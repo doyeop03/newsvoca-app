@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import '../constants/legal_document_versions.dart';
@@ -161,30 +162,137 @@ class AuthService {
   }
 
   static Future<UserCredential?> signInWithGoogle() async {
-    try {
-      final googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) {
-        return null;
-      }
+    const googleSignInStage = '1_google_sign_in';
+    const idTokenStage = '2_google_id_token';
+    const firebaseAuthStage = '3_firebase_auth';
+    const userDocumentStage = '4_firestore_user_document';
 
-      final googleAuth = await googleUser.authentication;
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-      final userCredential = await _auth.signInWithCredential(credential);
-      final user = userCredential.user;
-      if (user != null) {
-        await createOrUpdateUserDoc(user, provider: 'google');
-      }
-      return userCredential;
-    } catch (error) {
-      // ignore: avoid_print
-      print(
-        'Google sign-in failed. If this happens on Android, register SHA-1/SHA-256 in Firebase Console > Project Settings > Android app and download google-services.json again. error=$error',
-      );
+    debugPrint('[GoogleAuth][stage=$googleSignInStage][status=start]');
+    GoogleSignInAccount? googleUser;
+    try {
+      googleUser = await _googleSignIn.signIn();
+    } catch (error, stackTrace) {
+      _logGoogleAuthFailure(googleSignInStage, error, stackTrace);
       rethrow;
     }
+    if (googleUser == null) {
+      debugPrint('[GoogleAuth][stage=$googleSignInStage][status=cancelled]');
+      return null;
+    }
+    debugPrint('[GoogleAuth][stage=$googleSignInStage][status=success]');
+
+    debugPrint('[GoogleAuth][stage=$idTokenStage][status=start]');
+    GoogleSignInAuthentication googleAuth;
+    try {
+      googleAuth = await googleUser.authentication;
+    } catch (error, stackTrace) {
+      _logGoogleAuthFailure(idTokenStage, error, stackTrace);
+      rethrow;
+    }
+    debugPrint(
+      '[GoogleAuth][stage=$idTokenStage][status=success] '
+      'idTokenPresent=${googleAuth.idToken != null}',
+    );
+
+    final credential = GoogleAuthProvider.credential(
+      accessToken: googleAuth.accessToken,
+      idToken: googleAuth.idToken,
+    );
+
+    debugPrint('[GoogleAuth][stage=$firebaseAuthStage][status=start]');
+    UserCredential userCredential;
+    try {
+      userCredential = await _auth.signInWithCredential(credential);
+    } catch (error, stackTrace) {
+      _logGoogleAuthFailure(firebaseAuthStage, error, stackTrace);
+      rethrow;
+    }
+    debugPrint('[GoogleAuth][stage=$firebaseAuthStage][status=success]');
+
+    final user = userCredential.user;
+    if (user != null) {
+      debugPrint('[GoogleAuth][stage=$userDocumentStage][status=start]');
+      try {
+        await createOrUpdateUserDoc(user, provider: 'google');
+      } catch (error, stackTrace) {
+        _logGoogleAuthFailure(userDocumentStage, error, stackTrace);
+        rethrow;
+      }
+      debugPrint('[GoogleAuth][stage=$userDocumentStage][status=success]');
+    } else {
+      debugPrint('[GoogleAuth][stage=$userDocumentStage][status=skipped]');
+    }
+    return userCredential;
+  }
+
+  static void _logGoogleAuthFailure(
+    String stage,
+    Object error,
+    StackTrace stackTrace,
+  ) {
+    debugPrint('[GoogleAuth][stage=$stage][status=failure]');
+    debugPrint('[GoogleAuth][stage=$stage] runtimeType=${error.runtimeType}');
+    debugPrint(
+      '[GoogleAuth][stage=$stage] exceptionMessage='
+      '${_sanitizeAuthLogValue(error.toString())}',
+    );
+
+    if (error is FirebaseAuthException) {
+      debugPrint('[GoogleAuth][stage=$stage] firebaseAuthCode=${error.code}');
+      debugPrint(
+        '[GoogleAuth][stage=$stage] firebaseAuthMessage='
+        '${_sanitizeAuthLogValue(error.message)}',
+      );
+    } else if (error is FirebaseException) {
+      debugPrint('[GoogleAuth][stage=$stage] firebaseCode=${error.code}');
+      debugPrint(
+        '[GoogleAuth][stage=$stage] firebaseMessage='
+        '${_sanitizeAuthLogValue(error.message)}',
+      );
+    }
+    if (error is PlatformException) {
+      debugPrint('[GoogleAuth][stage=$stage] platformCode=${error.code}');
+      debugPrint(
+        '[GoogleAuth][stage=$stage] platformMessage='
+        '${_sanitizeAuthLogValue(error.message)}',
+      );
+    }
+
+    debugPrintStack(
+      label: '[GoogleAuth][stage=$stage] stackTrace',
+      stackTrace: stackTrace,
+    );
+  }
+
+  static String _sanitizeAuthLogValue(Object? value) {
+    if (value == null) return 'null';
+
+    var sanitized = value.toString();
+    final currentUser = _auth.currentUser;
+    final uid = currentUser?.uid;
+    final email = currentUser?.email;
+    if (uid != null && uid.isNotEmpty) {
+      sanitized = sanitized.replaceAll(uid, '[REDACTED_UID]');
+    }
+    if (email != null && email.isNotEmpty) {
+      sanitized = sanitized.replaceAll(email, '[REDACTED_EMAIL]');
+    }
+    sanitized = sanitized.replaceAll(
+      RegExp(r'[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}', caseSensitive: false),
+      '[REDACTED_EMAIL]',
+    );
+    sanitized = sanitized.replaceAll(
+      RegExp(r'eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+'),
+      '[REDACTED_TOKEN]',
+    );
+    sanitized = sanitized.replaceAll(
+      RegExp(
+        r'(access[_ ]?token|id[_ ]?token)\s*[:=]\s*[^,\s}\]]+',
+        caseSensitive: false,
+      ),
+      '[REDACTED_TOKEN_FIELD]',
+    );
+    return sanitized;
   }
 
   static Future<void> sendPasswordResetEmail(String email) async {

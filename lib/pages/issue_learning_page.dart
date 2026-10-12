@@ -58,16 +58,24 @@ class IssueLearningPage extends StatelessWidget {
 
   Future<void> _startReview(BuildContext context) async {
     try {
-      final loader =
-          loadReviewWordsForTest ??
-          (int limit) => ReviewService.getTodayReviewWords(limit: limit);
-      final reviewWords = await loader(10);
+      final reviewWords = await ReviewService.getDailyReviewPool(
+        todayWords: issueSet.learningWords,
+        loadStoredWords: loadReviewWordsForTest == null
+            ? null
+            : () => loadReviewWordsForTest!(10),
+      );
       if (!context.mounted) return;
-      if (reviewWords.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('복습할 단어를 준비하지 못했어요. 다시 시도해 주세요.')),
+      final questions = _buildReviewQuestions(
+        reviewWords,
+        limit: 10,
+        distractorWords: [...reviewWords, ...issueSet.learningWords],
+        uniqueWords: true,
+      );
+      if (questions.length != 10) {
+        throw StateError(
+          'Need 10 unique valid review questions; '
+          'pool=${reviewWords.length}, generated=${questions.length}',
         );
-        return;
       }
       await Navigator.of(context).push(
         MaterialPageRoute(
@@ -76,6 +84,7 @@ class IssueLearningPage extends StatelessWidget {
               ReviewQuizPage(
                 reviewWords: reviewWords,
                 questionLimit: 10,
+                uniqueWordQuestions: true,
                 dailyLearningFlow: true,
                 dailyCorrectCount: completedIssueScore,
                 dailyQuestionCount: 25,
@@ -85,10 +94,18 @@ class IssueLearningPage extends StatelessWidget {
               ),
         ),
       );
-    } catch (error) {
+    } catch (error, stack) {
+      debugPrint('[daily-review] initialization failed: $error');
+      debugPrintStack(stackTrace: stack);
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('복습 문제를 준비하지 못했어요. 다시 시도해 주세요.')),
+        SnackBar(
+          content: const Text('유효한 복습 단어가 부족하거나 학습 데이터에 문제가 있어요.'),
+          action: SnackBarAction(
+            label: '다시 시도',
+            onPressed: () => _startReview(context),
+          ),
+        ),
       );
     }
   }
@@ -121,7 +138,7 @@ class IssueLearningPage extends StatelessWidget {
             ),
           ),
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(22, 17, 22, 125),
+            padding: const EdgeInsets.fromLTRB(22, 17, 22, 35),
             children: [
               _IssueLearningHeader(
                 currentIndex: issueIndex,
@@ -226,8 +243,7 @@ class IssueLearningPage extends StatelessWidget {
             ],
           ),
         ),
-        bottomNavigationBar: SafeArea(
-          bottom: false,
+        bottomNavigationBar: BottomActionSafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(22, 10, 22, 10),
             child: _LearningWordNavigationButtons(
@@ -286,7 +302,10 @@ class _IssueLearningHeader extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
+        Wrap(
+          spacing: 10,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             Text(
               '${currentIndex + 1} / $issueCount',
@@ -296,10 +315,7 @@ class _IssueLearningHeader extends StatelessWidget {
                 fontWeight: FontWeight.w900,
               ),
             ),
-            if (_topicLabel.isNotEmpty) ...[
-              const SizedBox(width: 10),
-              _Pill(label: _topicLabel),
-            ],
+            if (_topicLabel.isNotEmpty) ...[_Pill(label: _topicLabel)],
           ],
         ),
         const SizedBox(height: 12),
@@ -461,7 +477,7 @@ class _IssueQuizPageState extends State<IssueQuizPage> {
     showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => Dialog(
+      builder: (_) => _ResponsiveDialog(
         backgroundColor: Colors.transparent,
         elevation: 0,
         insetPadding: const EdgeInsets.symmetric(horizontal: 28),
@@ -579,7 +595,7 @@ class _IssueQuizPageState extends State<IssueQuizPage> {
                   ),
                 )
               : ListView(
-                  padding: const EdgeInsets.fromLTRB(22, 17, 22, 125),
+                  padding: const EdgeInsets.fromLTRB(22, 17, 22, 35),
                   children: [
                     _DailyQuizQuestionView(
                       question: quizQuestions[index],
@@ -591,8 +607,7 @@ class _IssueQuizPageState extends State<IssueQuizPage> {
                   ],
                 ),
         ),
-        bottomNavigationBar: SafeArea(
-          bottom: false,
+        bottomNavigationBar: BottomActionSafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(22, 10, 22, 10),
             child: _PrimaryButton(

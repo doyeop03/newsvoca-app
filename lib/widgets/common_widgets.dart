@@ -2,9 +2,6 @@ part of '../main.dart';
 
 const _clayBackground = AppColors.pageBackground;
 const _claySurface = Color(0xFFFFFBFF);
-const _clayLilac = Color(0xFFEBDDFF);
-const _clayPeach = Color(0xFFFFE1D7);
-const _clayMint = Color(0xFFDFF8EF);
 
 List<TextSpan> buildHighlightedTextSpans(String text, String keyword) {
   final normalizedKeyword = keyword.trim();
@@ -295,7 +292,7 @@ BoxDecoration _clayDecoration({
 Future<bool> _showLearningExitConfirmation(BuildContext context) async {
   final shouldExit = await showDialog<bool>(
     context: context,
-    builder: (dialogContext) => Dialog(
+    builder: (dialogContext) => _ResponsiveDialog(
       backgroundColor: Colors.transparent,
       elevation: 0,
       insetPadding: const EdgeInsets.symmetric(horizontal: 28),
@@ -338,7 +335,7 @@ Future<bool> _showLearningExitConfirmation(BuildContext context) async {
             Row(
               children: [
                 Expanded(
-                  child: SizedBox(
+                  child: AdaptiveButtonBox(
                     height: 50,
                     child: FilledButton(
                       onPressed: () => Navigator.pop(dialogContext, true),
@@ -360,7 +357,7 @@ Future<bool> _showLearningExitConfirmation(BuildContext context) async {
                 const SizedBox(width: 10),
                 Expanded(
                   flex: 2,
-                  child: SizedBox(
+                  child: AdaptiveButtonBox(
                     height: 50,
                     child: FilledButton(
                       onPressed: () => Navigator.pop(dialogContext, false),
@@ -393,7 +390,7 @@ Future<bool> _showLearningExitConfirmation(BuildContext context) async {
 Future<bool> _showSignOutConfirmation(BuildContext context) async {
   final shouldSignOut = await showDialog<bool>(
     context: context,
-    builder: (dialogContext) => Dialog(
+    builder: (dialogContext) => _ResponsiveDialog(
       backgroundColor: Colors.transparent,
       elevation: 0,
       insetPadding: const EdgeInsets.symmetric(horizontal: 28),
@@ -436,7 +433,7 @@ Future<bool> _showSignOutConfirmation(BuildContext context) async {
             Row(
               children: [
                 Expanded(
-                  child: SizedBox(
+                  child: AdaptiveButtonBox(
                     height: 50,
                     child: FilledButton(
                       onPressed: () => Navigator.pop(dialogContext, false),
@@ -458,7 +455,7 @@ Future<bool> _showSignOutConfirmation(BuildContext context) async {
                 const SizedBox(width: 10),
                 Expanded(
                   flex: 2,
-                  child: SizedBox(
+                  child: AdaptiveButtonBox(
                     height: 50,
                     child: FilledButton(
                       onPressed: () => Navigator.pop(dialogContext, true),
@@ -496,7 +493,7 @@ Future<bool> _showDeleteConfirmation(
 }) async {
   final shouldDelete = await showDialog<bool>(
     context: context,
-    builder: (dialogContext) => Dialog(
+    builder: (dialogContext) => _ResponsiveDialog(
       backgroundColor: Colors.transparent,
       elevation: 0,
       insetPadding: const EdgeInsets.symmetric(horizontal: 28),
@@ -539,7 +536,7 @@ Future<bool> _showDeleteConfirmation(
             Row(
               children: [
                 Expanded(
-                  child: SizedBox(
+                  child: AdaptiveButtonBox(
                     height: 50,
                     child: FilledButton(
                       onPressed: () => Navigator.pop(dialogContext, false),
@@ -561,7 +558,7 @@ Future<bool> _showDeleteConfirmation(
                 const SizedBox(width: 10),
                 Expanded(
                   flex: 2,
-                  child: SizedBox(
+                  child: AdaptiveButtonBox(
                     height: 50,
                     child: FilledButton(
                       onPressed: () => Navigator.pop(dialogContext, true),
@@ -589,6 +586,62 @@ Future<bool> _showDeleteConfirmation(
     ),
   );
   return shouldDelete == true;
+}
+
+/// Keeps the normal button height while allowing scaled labels to grow.
+class AdaptiveButtonBox extends StatelessWidget {
+  const AdaptiveButtonBox({
+    super.key,
+    this.height = 0,
+    this.width,
+    required this.child,
+  });
+  final double height;
+  final double? width;
+  final Widget child;
+  @override
+  Widget build(BuildContext context) => ConstrainedBox(
+    constraints: BoxConstraints(minHeight: height),
+    child: SizedBox(width: width, child: child),
+  );
+}
+
+class _ResponsiveDialog extends StatelessWidget {
+  const _ResponsiveDialog({
+    this.backgroundColor,
+    this.elevation,
+    this.insetPadding = const EdgeInsets.symmetric(
+      horizontal: 40,
+      vertical: 24,
+    ),
+    required this.child,
+  });
+  final Color? backgroundColor;
+  final double? elevation;
+  final EdgeInsets insetPadding;
+  final Widget child;
+  @override
+  Widget build(BuildContext context) => Dialog(
+    backgroundColor: backgroundColor,
+    elevation: elevation,
+    insetPadding: insetPadding,
+    child: SingleChildScrollView(child: child),
+  );
+}
+
+/// A Scaffold footer owns the bottom inset once; the body is laid out above it.
+class BottomActionSafeArea extends StatelessWidget {
+  const BottomActionSafeArea({super.key, required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final keyboard = MediaQuery.viewInsetsOf(context).bottom;
+    return Padding(
+      padding: EdgeInsets.only(bottom: keyboard),
+      child: SafeArea(top: false, bottom: keyboard == 0, child: child),
+    );
+  }
 }
 
 class _FlowScaffold extends StatelessWidget {
@@ -627,7 +680,7 @@ class _FlowScaffold extends StatelessWidget {
         child: SafeArea(
           top: false,
           child: ListView(
-            padding: EdgeInsets.fromLTRB(22, 17, 22, bottom == null ? 35 : 125),
+            padding: const EdgeInsets.fromLTRB(22, 17, 22, 35),
             children: [
               Text(title, style: Theme.of(context).textTheme.headlineMedium),
               const SizedBox(height: 9),
@@ -640,8 +693,7 @@ class _FlowScaffold extends StatelessWidget {
       ),
       bottomNavigationBar: bottom == null
           ? null
-          : SafeArea(
-              bottom: false,
+          : BottomActionSafeArea(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(22, 10, 22, 10),
                 child: bottom!,
@@ -791,33 +843,42 @@ class _PrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 58,
-      width: double.infinity,
-      child: FilledButton(
-        onPressed: enabled ? onTap : null,
-        style: FilledButton.styleFrom(
-          backgroundColor: _blue,
-          disabledBackgroundColor: const Color(0xFFD7DCE8),
-          foregroundColor: Colors.white,
-          shadowColor: const Color(0x665B8EF3),
-          elevation: 3,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              label,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 58),
+      child: AdaptiveButtonBox(
+        width: double.infinity,
+        child: FilledButton(
+          onPressed: enabled ? onTap : null,
+          style: FilledButton.styleFrom(
+            backgroundColor: _blue,
+            disabledBackgroundColor: const Color(0xFFD7DCE8),
+            foregroundColor: Colors.white,
+            shadowColor: const Color(0x665B8EF3),
+            elevation: 3,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18),
             ),
-            if (showArrow) ...[
-              const SizedBox(width: 9),
-              const Icon(Icons.arrow_forward_rounded, size: 20),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Flexible(
+                child: Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              if (showArrow) ...[
+                const SizedBox(width: 9),
+                const Icon(Icons.arrow_forward_rounded, size: 20),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -851,13 +912,15 @@ class _LearningWordNavigationButtons extends StatelessWidget {
       children: [
         if (showPrevious)
           Expanded(
-            child: SizedBox(
-              height: 56,
-              child: OutlinedButton.icon(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 56),
+              child: OutlinedButton(
                 onPressed: previousEnabled ? onPrevious : null,
-                icon: const Icon(Icons.arrow_back_rounded),
-                label: Text(previousLabel),
                 style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
                   foregroundColor: _blue,
                   disabledForegroundColor: _muted,
                   backgroundColor: Colors.white,
@@ -868,14 +931,24 @@ class _LearningWordNavigationButtons extends StatelessWidget {
                   ),
                   textStyle: const TextStyle(fontWeight: FontWeight.w900),
                 ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.arrow_back_rounded),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(previousLabel, textAlign: TextAlign.center),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
         if (showPrevious && showNext) const SizedBox(width: 10),
         if (showNext)
           Expanded(
-            child: SizedBox(
-              height: 56,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 56),
               child: FilledButton(
                 onPressed: nextEnabled ? onNext : null,
                 style: FilledButton.styleFrom(
@@ -885,6 +958,10 @@ class _LearningWordNavigationButtons extends StatelessWidget {
                   disabledForegroundColor: Colors.white,
                   shadowColor: const Color(0x665B8EF3),
                   elevation: nextEnabled ? 3 : 0,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(17),
                   ),
@@ -895,10 +972,7 @@ class _LearningWordNavigationButtons extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Flexible(
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text(nextLabel),
-                      ),
+                      child: Text(nextLabel, textAlign: TextAlign.center),
                     ),
                     const SizedBox(width: 8),
                     const Icon(Icons.arrow_forward_rounded),

@@ -10,6 +10,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Firebase initialization failed'), findsOneWidget);
+    expect(
+      find.textContaining('Firebase initialization failed'),
+      findsOneWidget,
+    );
   });
 }

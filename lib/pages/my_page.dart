@@ -4,7 +4,9 @@ part of '../main.dart';
 const String _kakaoOpenChatUrl = 'https://open.kakao.com/o/s6RvKWHi';
 
 class MyPageScreen extends StatefulWidget {
-  const MyPageScreen({super.key});
+  const MyPageScreen({super.key, this.emailForTest});
+  @visibleForTesting
+  final String? emailForTest;
 
   @override
   State<MyPageScreen> createState() => _MyPageScreenState();
@@ -63,7 +65,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
   Future<bool> _showKakaoChatConfirmation(BuildContext context) async {
     final shouldOpen = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => Dialog(
+      builder: (dialogContext) => _ResponsiveDialog(
         backgroundColor: Colors.transparent,
         elevation: 0,
         insetPadding: const EdgeInsets.symmetric(horizontal: 28),
@@ -117,7 +119,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
               Row(
                 children: [
                   Expanded(
-                    child: SizedBox(
+                    child: AdaptiveButtonBox(
                       height: 50,
                       child: FilledButton(
                         onPressed: () => Navigator.pop(dialogContext, false),
@@ -139,7 +141,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
                   const SizedBox(width: 10),
                   Expanded(
                     flex: 2,
-                    child: SizedBox(
+                    child: AdaptiveButtonBox(
                       height: 50,
                       child: FilledButton(
                         onPressed: () => Navigator.pop(dialogContext, true),
@@ -365,7 +367,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final email = AuthService.currentUser?.email;
+    final email = widget.emailForTest ?? AuthService.currentUser?.email;
 
     return Scaffold(
       backgroundColor: _clayBackground,
@@ -414,8 +416,6 @@ class _MyPageScreenState extends State<MyPageScreen> {
                     Expanded(
                       child: Text(
                         email?.isNotEmpty == true ? email! : '이메일 정보 없음',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 15,

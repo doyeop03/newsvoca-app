@@ -1,7 +1,9 @@
 part of '../main.dart';
 
 class LearningNotificationSettingsPage extends StatefulWidget {
-  const LearningNotificationSettingsPage({super.key});
+  const LearningNotificationSettingsPage({super.key, this.settingsForTest});
+  @visibleForTesting
+  final LearningNotificationSettings? settingsForTest;
 
   @override
   State<LearningNotificationSettingsPage> createState() =>
@@ -18,7 +20,13 @@ class _LearningNotificationSettingsPageState
   @override
   void initState() {
     super.initState();
-    _load();
+    final initialSettings = widget.settingsForTest;
+    if (initialSettings != null) {
+      _settings = initialSettings;
+      _loading = false;
+    } else {
+      _load();
+    }
   }
 
   Future<void> _load() async {

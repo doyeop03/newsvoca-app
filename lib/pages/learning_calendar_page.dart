@@ -1,7 +1,9 @@
 part of '../main.dart';
 
 class LearningCalendarScreen extends StatefulWidget {
-  const LearningCalendarScreen({super.key});
+  const LearningCalendarScreen({super.key, this.summaryForTest});
+  @visibleForTesting
+  final DailyLearningSummary? summaryForTest;
 
   @override
   State<LearningCalendarScreen> createState() => _LearningCalendarScreenState();
@@ -22,7 +24,12 @@ class _LearningCalendarScreenState extends State<LearningCalendarScreen> {
     final today = _todayDate();
     _visibleMonth = DateTime(today.year, today.month);
     _selectedDate = today;
-    _loadCalendarData();
+    if (widget.summaryForTest case final summary?) {
+      _dailySummary = summary;
+      _isLoading = false;
+    } else {
+      _loadCalendarData();
+    }
   }
 
   Future<void> _loadCalendarData() async {

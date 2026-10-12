@@ -1,4 +1,4 @@
-package com.example.wordapp
+package com.doyeop.newsvoca
 
 import io.flutter.embedding.android.FlutterActivity
 

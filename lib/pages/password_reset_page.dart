@@ -92,7 +92,7 @@ class _PasswordResetPageState extends State<PasswordResetPage> {
     final shouldReturn = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (dialogContext) => Dialog(
+      builder: (dialogContext) => _ResponsiveDialog(
         backgroundColor: Colors.transparent,
         elevation: 0,
         insetPadding: const EdgeInsets.symmetric(horizontal: 28),
@@ -133,7 +133,7 @@ class _PasswordResetPageState extends State<PasswordResetPage> {
                 style: TextStyle(color: _muted, fontSize: 13, height: 1.5),
               ),
               const SizedBox(height: 22),
-              SizedBox(
+              AdaptiveButtonBox(
                 width: double.infinity,
                 height: 50,
                 child: FilledButton(
@@ -260,7 +260,7 @@ class _PasswordResetPageState extends State<PasswordResetPage> {
                               ),
                             ),
                             const SizedBox(height: 18),
-                            SizedBox(
+                            AdaptiveButtonBox(
                               width: double.infinity,
                               height: 54,
                               child: FilledButton(

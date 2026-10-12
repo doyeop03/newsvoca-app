@@ -306,7 +306,7 @@ class _InterestCategoryPageState extends State<InterestCategoryPage> {
                           ),
                         ),
                         const SizedBox(height: 18),
-                        SizedBox(
+                        AdaptiveButtonBox(
                           height: 58,
                           width: double.infinity,
                           child: FilledButton(

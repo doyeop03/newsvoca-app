@@ -388,7 +388,7 @@ class _RecommendedReviewCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
-          SizedBox(
+          AdaptiveButtonBox(
             width: double.infinity,
             height: 54,
             child: FilledButton(
@@ -865,7 +865,7 @@ class _WrongAnswerRecommendation extends StatelessWidget {
               style: TextStyle(color: Colors.white, fontSize: 15, height: 1.55),
             ),
             const SizedBox(height: 28),
-            SizedBox(
+            AdaptiveButtonBox(
               width: double.infinity,
               child: FilledButton(
                 onPressed: onStart,

@@ -7,6 +7,58 @@
   "client": [
     {
       "client_info": {
+        "mobilesdk_app_id": "1:475092803921:android:3c75f5996fe3625526f370",
+        "android_client_info": {
+          "package_name": "com.doyeop.newsvoca"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "475092803921-fe8qortr5vaq3hllf8dt32ls6trjfu01.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.doyeop.newsvoca",
+            "certificate_hash": "7ea7e385c35abfb2e506135b636d8e6909d6caa6"
+          }
+        },
+        {
+          "client_id": "475092803921-oaqaec56opsg4a7bf5p7b0l87ogb48e7.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.doyeop.newsvoca",
+            "certificate_hash": "c61e6c5979aa91b17c37a1b8fd3221cbab73dba7"
+          }
+        },
+        {
+          "client_id": "475092803921-solovb7no5t838it4m4llnkj3rl4a7u9.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAzIOuXIl2E-huH5N8N83TMx5srLzsOK2Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "475092803921-solovb7no5t838it4m4llnkj3rl4a7u9.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "475092803921-e0i8dc6gdcfq74to7se3bnocsrf0lgsf.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.wordapp"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
         "mobilesdk_app_id": "1:475092803921:android:b5f26200923559c626f370",
         "android_client_info": {
           "package_name": "com.example.wordapp"

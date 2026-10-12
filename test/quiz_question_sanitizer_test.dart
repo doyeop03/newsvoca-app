@@ -11,14 +11,8 @@ void main() {
       normalizeWordChoiceDescription('예상 밖의 충격적인 발표라는 뜻입니다.'),
       '예상 밖의 충격적인 발표',
     );
-    expect(
-      normalizeWordChoiceDescription('인재 채용이라는 뜻입니다'),
-      '인재 채용',
-    );
-    expect(
-      normalizeWordChoiceDescription('정책 방향인 단어입니다.'),
-      '정책 방향',
-    );
+    expect(normalizeWordChoiceDescription('인재 채용이라는 뜻입니다'), '인재 채용');
+    expect(normalizeWordChoiceDescription('정책 방향인 단어입니다.'), '정책 방향');
   });
 
   test('설명 중간에 있는 표현과 일반 설명문은 유지한다', () {

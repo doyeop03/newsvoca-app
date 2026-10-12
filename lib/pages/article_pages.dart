@@ -352,7 +352,7 @@ class _RelatedWordsGuideDialogState extends State<_RelatedWordsGuideDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
+    return _ResponsiveDialog(
       backgroundColor: Colors.transparent,
       elevation: 0,
       insetPadding: const EdgeInsets.symmetric(horizontal: 28),
@@ -472,7 +472,7 @@ class _RelatedWordsGuideDialogState extends State<_RelatedWordsGuideDialog> {
             Row(
               children: [
                 Expanded(
-                  child: SizedBox(
+                  child: AdaptiveButtonBox(
                     height: 46,
                     child: TextButton(
                       onPressed: widget.onHidePermanently,
@@ -495,7 +495,7 @@ class _RelatedWordsGuideDialogState extends State<_RelatedWordsGuideDialog> {
                 ),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: SizedBox(
+                  child: AdaptiveButtonBox(
                     height: 46,
                     child: FilledButton(
                       onPressed: widget.onClose,
@@ -907,7 +907,7 @@ class _SentenceStudyCardState extends State<_SentenceStudyCard> {
             secondChild: const SizedBox(width: double.infinity),
           ),
           const SizedBox(height: 14),
-          SizedBox(
+          AdaptiveButtonBox(
             width: double.infinity,
             height: 46,
             child: TextButton(

@@ -190,7 +190,7 @@ class _ArticleMiniQuizPageState extends State<ArticleMiniQuizPage> {
               child: SafeArea(
                 top: false,
                 child: ListView(
-                  padding: const EdgeInsets.fromLTRB(22, 17, 22, 125),
+                  padding: const EdgeInsets.fromLTRB(22, 17, 22, 35),
                   children: [
                     Text(
                       '기사 학습 퀴즈',
@@ -222,8 +222,7 @@ class _ArticleMiniQuizPageState extends State<ArticleMiniQuizPage> {
               ),
           ],
         ),
-        bottomNavigationBar: SafeArea(
-          bottom: false,
+        bottomNavigationBar: BottomActionSafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(22, 10, 22, 10),
             child: SizedBox(
@@ -678,8 +677,9 @@ List<_ArticleQuizQuestion> _buildArticleQuizQuestions(
   for (final candidate in candidates) {
     if (questions.length >= 5) break;
     if (candidate.type == 'focus_word' &&
-        questions.where((item) => item.learnedType == 'focus_word').length >=
-            1) {
+        questions
+            .where((item) => item.learnedType == 'focus_word')
+            .isNotEmpty) {
       continue;
     }
 

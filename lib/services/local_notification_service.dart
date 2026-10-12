@@ -47,14 +47,16 @@ class LocalNotificationService {
     if (!_supportsScheduling) return false;
     bool granted = false;
     if (defaultTargetPlatform == TargetPlatform.android) {
-      granted = await _plugin
+      granted =
+          await _plugin
               .resolvePlatformSpecificImplementation<
                 AndroidFlutterLocalNotificationsPlugin
               >()
               ?.requestNotificationsPermission() ??
           false;
     } else if (defaultTargetPlatform == TargetPlatform.iOS) {
-      granted = await _plugin
+      granted =
+          await _plugin
               .resolvePlatformSpecificImplementation<
                 IOSFlutterLocalNotificationsPlugin
               >()
@@ -81,7 +83,9 @@ class LocalNotificationService {
       hour,
       minute,
     );
-    if (!scheduled.isAfter(now)) scheduled = scheduled.add(const Duration(days: 1));
+    if (!scheduled.isAfter(now)) {
+      scheduled = scheduled.add(const Duration(days: 1));
+    }
     await _plugin.zonedSchedule(
       id: dailyLearningNotificationId,
       title: '오늘의 뉴스 단어가 준비됐어요',
@@ -95,10 +99,7 @@ class LocalNotificationService {
     print('[notification] daily scheduled ${_timeLabel(hour, minute)}');
   }
 
-  Future<void> scheduleNoStudyReminder({
-    int hour = 21,
-    int minute = 0,
-  }) async {
+  Future<void> scheduleNoStudyReminder({int hour = 21, int minute = 0}) async {
     await initialize();
     if (!_supportsScheduling) return;
     final now = tz.TZDateTime.now(tz.local);

@@ -144,16 +144,18 @@ class _KnowledgeMapPageState extends State<KnowledgeMapPage> {
                 style: const TextStyle(color: _muted),
               ),
               const SizedBox(height: 14),
-              ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxHeight: MediaQuery.sizeOf(context).height * 0.55,
-                ),
-                child: ListView.separated(
-                  shrinkWrap: true,
-                  itemCount: topic.words.length,
-                  separatorBuilder: (_, _) => const Divider(height: 1),
-                  itemBuilder: (context, index) =>
-                      _KnowledgeWordRow(word: topic.words[index]),
+              Flexible(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.sizeOf(context).height * 0.55,
+                  ),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: topic.words.length,
+                    separatorBuilder: (_, _) => const Divider(height: 1),
+                    itemBuilder: (context, index) =>
+                        _KnowledgeWordRow(word: topic.words[index]),
+                  ),
                 ),
               ),
             ],
@@ -466,8 +468,6 @@ class _KnowledgeTopicRow extends StatelessWidget {
                 Expanded(
                   child: Text(
                     topic.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: Color(0xFF354158),
                       fontSize: 14,
@@ -540,8 +540,6 @@ class _KnowledgeWordRow extends StatelessWidget {
             flex: 4,
             child: Text(
               word.word,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: Color(0xFF2F3B52),
                 fontSize: 13,
@@ -554,8 +552,6 @@ class _KnowledgeWordRow extends StatelessWidget {
             flex: 5,
             child: Text(
               word.meaning.isEmpty ? '뜻 정보 없음' : word.meaning,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.right,
               style: const TextStyle(color: Color(0xFF758095), fontSize: 12),
             ),

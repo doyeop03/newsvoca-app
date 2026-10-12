@@ -167,7 +167,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(22, 18, 22, 16),
-                child: SizedBox(
+                child: AdaptiveButtonBox(
                   width: double.infinity,
                   height: 56,
                   child: FilledButton(

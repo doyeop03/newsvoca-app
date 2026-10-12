@@ -1,10 +1,129 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 import 'auth_service.dart';
 import 'user_word_service.dart';
 import '../utils/learning_date.dart';
 
 class ReviewService {
+  static bool isTemporaryWord(Map<String, dynamic> word) =>
+      word['_temporary_review_candidate'] == true;
+
+  static List<Map<String, dynamic>> buildDailyReviewPool({
+    required List<Map<String, dynamic>> storedWords,
+    required List<Map<String, dynamic>> todayWords,
+    DateTime? now,
+  }) {
+    String key(Map<String, dynamic> word) =>
+        UserWordService.wordIdFor(_stringValue(word['word']));
+    final known = <String>{
+      for (final word in storedWords)
+        if (isReviewCandidate(word) ||
+            word['review_excluded'] == true ||
+            word['is_mastered'] == true)
+          key(word),
+      for (final word in storedWords)
+        if (_stringValue(word['id']).isNotEmpty &&
+            (isReviewCandidate(word) ||
+                word['review_excluded'] == true ||
+                word['is_mastered'] == true))
+          _stringValue(word['id']),
+    };
+    final candidates =
+        storedWords
+            .where(isReviewCandidate)
+            .map((word) => _withComputedScore({...word}, now ?? DateTime.now()))
+            .toList()
+          ..sort(
+            (a, b) => _numValue(
+              b['review_score'],
+            ).compareTo(_numValue(a['review_score'])),
+          );
+    final seen = <String>{};
+    final result = <Map<String, dynamic>>[];
+    for (final word in candidates) {
+      if (seen.add(key(word))) result.add(word);
+    }
+    for (final word in todayWords) {
+      final wordKey = key(word);
+      if (_stringValue(word['word']).isEmpty ||
+          _stringValue(word['meaning']).isEmpty ||
+          wordKey == 'unknown_word' ||
+          known.contains(wordKey) ||
+          word['review_excluded'] == true ||
+          word['is_mastered'] == true ||
+          !seen.add(wordKey)) {
+        continue;
+      }
+      result.add({
+        ...word,
+        'id': wordKey,
+        '_temporary_review_candidate': true,
+        'is_learned': false,
+        'is_saved': false,
+      });
+    }
+    return result;
+  }
+
+  static Future<List<Map<String, dynamic>>> getDailyReviewPool({
+    required List<Map<String, dynamic>> todayWords,
+    Future<List<Map<String, dynamic>>> Function()? loadStoredWords,
+  }) async {
+    List<Map<String, dynamic>> stored = [];
+    try {
+      stored =
+          await (loadStoredWords?.call() ?? _loadStoredReviewWords(todayWords))
+              .timeout(const Duration(seconds: 8));
+    } catch (error, stack) {
+      debugPrint(
+        '[daily-review] user_words load failed; using today core words: $error',
+      );
+      debugPrintStack(stackTrace: stack);
+    }
+    return buildDailyReviewPool(storedWords: stored, todayWords: todayWords);
+  }
+
+  static Future<List<Map<String, dynamic>>> _loadStoredReviewWords(
+    List<Map<String, dynamic>> todayWords,
+  ) async {
+    final uid = await AuthService.ensureAnonymousLogin();
+    final collection = _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('user_words');
+    final snapshot = await collection.limit(100).get();
+    final words = [
+      for (final doc in snapshot.docs) {...doc.data(), 'id': doc.id},
+    ];
+    // Only when the legacy query is capped, resolve today's missing IDs so an
+    // excluded/mastered record outside its first 100 cannot become a fallback.
+    if (snapshot.docs.length == 100) {
+      final loadedIds = snapshot.docs.map((doc) => doc.id).toSet();
+      final missingIds = todayWords
+          .map((word) => UserWordService.wordIdFor(_stringValue(word['word'])))
+          .where((id) => id != 'unknown_word' && !loadedIds.contains(id))
+          .toSet()
+          .toList();
+      for (var offset = 0; offset < missingIds.length; offset += 10) {
+        final chunk = missingIds.skip(offset).take(10).toList();
+        try {
+          final extra = await collection
+              .where(FieldPath.documentId, whereIn: chunk)
+              .get();
+          words.addAll([
+            for (final doc in extra.docs) {...doc.data(), 'id': doc.id},
+          ]);
+        } catch (error, stack) {
+          debugPrint('[daily-review] supplemental history read failed: $error');
+          debugPrintStack(stackTrace: stack);
+          break;
+        }
+      }
+    }
+    return words;
+  }
+
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   static Future<List<Map<String, dynamic>>> getTodayReviewWords({
@@ -46,6 +165,7 @@ class ReviewService {
     Map<String, dynamic> wordData,
     bool isCorrect,
   ) async {
+    if (isTemporaryWord(wordData)) return;
     final word = _stringValue(wordData['word']);
     if (word.isEmpty) {
       return;
@@ -118,6 +238,7 @@ class ReviewService {
   static Future<void> excludeWordFromReview(
     Map<String, dynamic> wordData,
   ) async {
+    if (isTemporaryWord(wordData)) return;
     final word = _stringValue(wordData['word']);
     final documentId = _stringValue(wordData['id']).isNotEmpty
         ? _stringValue(wordData['id'])
@@ -149,6 +270,7 @@ class ReviewService {
   }
 
   static Future<void> restoreWordToReview(Map<String, dynamic> wordData) async {
+    if (isTemporaryWord(wordData)) return;
     final word = _stringValue(wordData['word']);
     final documentId = _stringValue(wordData['id']).isNotEmpty
         ? _stringValue(wordData['id'])

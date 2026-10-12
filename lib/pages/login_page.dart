@@ -156,8 +156,9 @@ class _LoginPageState extends State<LoginPage> {
     } on FirebaseAuthException catch (error) {
       _showSnackBar(_authErrorMessage(error));
     } catch (error) {
-      // ignore: avoid_print
-      print('Google sign-in failed: $error');
+      debugPrint(
+        '[GoogleAuth][ui] sign-in failed; see staged logs for details.',
+      );
       _showSnackBar('Google 로그인 중 문제가 발생했습니다.');
     } finally {
       if (mounted) {
@@ -202,8 +203,6 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
-
     return Scaffold(
       backgroundColor: _clayBackground,
       body: DecoratedBox(
@@ -217,7 +216,8 @@ class _LoginPageState extends State<LoginPage> {
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
-              padding: EdgeInsets.fromLTRB(26, 28, 26, 28 + bottomInset),
+              // Scaffold already resizes above the keyboard.
+              padding: const EdgeInsets.fromLTRB(26, 28, 26, 28),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 420),
                 child: Column(
@@ -306,7 +306,7 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                           ],
                           const SizedBox(height: 18),
-                          SizedBox(
+                          AdaptiveButtonBox(
                             width: double.infinity,
                             height: 54,
                             child: FilledButton(
@@ -338,7 +338,7 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                           ),
                           const SizedBox(height: 12),
-                          SizedBox(
+                          AdaptiveButtonBox(
                             width: double.infinity,
                             height: 52,
                             child: OutlinedButton.icon(

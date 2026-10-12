@@ -134,6 +134,9 @@ void main() {
     await reachSpellingQuestion(tester);
     final questionCounter = find.textContaining(RegExp(r'^\d+ / 15$'));
     final before = tester.widget<Text>(questionCounter.first).data;
+    final progress = RegExp(r'^(\d+) / (\d+)$').firstMatch(before!);
+    expect(progress, isNotNull);
+    final isLastQuestion = progress!.group(1) == progress.group(2);
 
     await tester.tap(find.text('정답 확인'));
     await tester.pump();
@@ -142,6 +145,9 @@ void main() {
     expect(find.text('오답입니다. 정답은 protect입니다.'), findsOneWidget);
     expect(find.text('그만 볼래요'), findsOneWidget);
     expect(tester.widget<Text>(questionCounter.first).data, before);
-    expect(find.text('다음 문제'), findsOneWidget);
+    expect(
+      find.text(isLastQuestion ? '결과 보기' : '다음 문제'),
+      findsOneWidget,
+    );
   });
 }

@@ -85,7 +85,7 @@ class _QuizScreenState extends State<QuizScreen> {
         child: SafeArea(
           top: false,
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(22, 17, 22, 125),
+            padding: const EdgeInsets.fromLTRB(22, 17, 22, 35),
             children: [
               Text(
                 _completed ? '퀴즈 완료' : '오늘 배운 단어 퀴즈',
@@ -140,11 +140,10 @@ class _QuizScreenState extends State<QuizScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: SafeArea(
-        bottom: false,
+      bottomNavigationBar: BottomActionSafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(22, 10, 22, 10),
-          child: SizedBox(
+          child: AdaptiveButtonBox(
             height: 58,
             width: double.infinity,
             child: FilledButton(
@@ -917,7 +916,7 @@ class _DailyQuizPageState extends State<DailyQuizPage> {
         child: SafeArea(
           top: false,
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(22, 17, 22, 125),
+            padding: const EdgeInsets.fromLTRB(22, 17, 22, 35),
             children: [
               if (_preparingReview)
                 const Column(
@@ -946,11 +945,10 @@ class _DailyQuizPageState extends State<DailyQuizPage> {
           ),
         ),
       ),
-      bottomNavigationBar: SafeArea(
-        bottom: false,
+      bottomNavigationBar: BottomActionSafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(22, 10, 22, 10),
-          child: SizedBox(
+          child: AdaptiveButtonBox(
             height: 58,
             width: double.infinity,
             child: FilledButton(

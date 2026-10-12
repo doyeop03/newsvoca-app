@@ -105,9 +105,7 @@ void main() {
       );
     }
 
-    final artificialIntelligenceLabel = tester.widget<Text>(
-      find.text('인공지능'),
-    );
+    final artificialIntelligenceLabel = tester.widget<Text>(find.text('인공지능'));
     final semiconductorLabel = tester.widget<Text>(find.text('반도체'));
     expect(
       artificialIntelligenceLabel.style?.color,
